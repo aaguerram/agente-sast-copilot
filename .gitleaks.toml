@@ -1,0 +1,11 @@
+# Configuración de gitleaks (la usa el hook de pre-commit).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Muestras deliberadamente vulnerables (demos del agente SAST y fixtures de los hooks .NET): secretos falsos"
+paths = [
+  '''^agente-sast-g7/samples/''',
+  '''^tools/pre-commit-hooks/tests/fixtures/''',
+  '''^objetivos/''',
+]

@@ -1,0 +1,62 @@
+site_name: Agente de pruebas Copilot
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: es
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - content.code.copy
+    - content.tabs.link
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle: { icon: material/weather-night, name: Modo oscuro }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle: { icon: material/weather-sunny, name: Modo claro }
+
+nav:
+  - Inicio: index.md
+  - Uso con Copilot: uso-copilot.md
+  - SSDLC: ssdlc.md
+  - HackaPro 2026: hackapro.md
+  - Recomendaciones: recomendaciones.md
+  - Pipeline de seguridad: pipeline.md
+  - Hooks .NET (pre-commit): hooks-dotnet.md
+  - Metodología SAST (agentes): metodologia-sast.md
+  - Metodología SAST en detalle: metodologia-detalle.md
+  - Presentación: presentacion.md
+  - Replicar en otra máquina: replicar.md
+  - Arquitectura en VS Code: arquitectura-vscode.md
+
+# Página local opcional (no versionada): no avisa si existe fuera del nav.
+not_in_nav: |
+  /hackapro-bases.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - plantuml_markdown:
+      server: !ENV [PLANTUML_SERVER, "http://plantuml:8080"]
+      format: svg_inline

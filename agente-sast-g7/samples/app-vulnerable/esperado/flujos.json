@@ -1,0 +1,324 @@
+{
+  "paso": "trazador-flujos",
+  "ruta": "agente-sast-g7/samples/app-vulnerable",
+  "flujos": [
+    {
+      "id": "F-01",
+      "titulo": "Inyección SQL en la búsqueda por titular",
+      "cwe": "CWE-89",
+      "fuente": "E-004",
+      "sumidero": "O-004",
+      "camino": [
+        {
+          "archivo": "Controllers/CuentasController.cs",
+          "linea": 25,
+          "simbolo": "Buscar(titular)",
+          "nota": "query sin validar"
+        },
+        {
+          "archivo": "Services/CuentaService.cs",
+          "linea": 18,
+          "simbolo": "BuscarPorTitular",
+          "nota": "solo Trim()"
+        },
+        {
+          "archivo": "Repositories/CuentaRepository.cs",
+          "linea": 26,
+          "simbolo": "BuscarPorTitular",
+          "nota": "concatenado en LIKE '%...%'"
+        }
+      ],
+      "saneamiento": "parcial",
+      "detalle": "Trim() no neutraliza comillas.",
+      "estado": "candidato"
+    },
+    {
+      "id": "F-02",
+      "titulo": "Inyección SQL con la cookie cliente_id",
+      "cwe": "CWE-89",
+      "fuente": "E-005",
+      "sumidero": "O-005",
+      "camino": [
+        {
+          "archivo": "Controllers/CuentasController.cs",
+          "linea": 34,
+          "simbolo": "Mias()",
+          "nota": "Request.Cookies[\"cliente_id\"]"
+        },
+        {
+          "archivo": "Services/CuentaService.cs",
+          "linea": 22,
+          "simbolo": "DeCliente",
+          "nota": "pasa el valor sin cambios"
+        },
+        {
+          "archivo": "Repositories/CuentaRepository.cs",
+          "linea": 38,
+          "simbolo": "DeCliente",
+          "nota": "interpolación $\"... = {clienteId}\""
+        }
+      ],
+      "saneamiento": "ninguno",
+      "detalle": "",
+      "estado": "candidato"
+    },
+    {
+      "id": "F-03",
+      "titulo": "Inyección SQL en el registro de transferencias",
+      "cwe": "CWE-89",
+      "fuente": "E-012",
+      "sumidero": "O-007",
+      "camino": [
+        {
+          "archivo": "Controllers/TransferenciasController.cs",
+          "linea": 19,
+          "simbolo": "Crear(dto)",
+          "nota": "cuerpo JSON"
+        },
+        {
+          "archivo": "Services/TransferenciaService.cs",
+          "linea": 24,
+          "simbolo": "Ejecutar",
+          "nota": "pasa CuentaDestino y Concepto sin validar"
+        },
+        {
+          "archivo": "Repositories/TransferenciaRepository.cs",
+          "linea": 16,
+          "simbolo": "Registrar",
+          "nota": "INSERT concatenado (líneas 16-17)"
+        }
+      ],
+      "saneamiento": "ninguno",
+      "detalle": "",
+      "estado": "candidato"
+    },
+    {
+      "id": "F-04",
+      "titulo": "Recorrido de rutas al subir documentos",
+      "cwe": "CWE-22",
+      "fuente": "E-015",
+      "sumidero": "O-008",
+      "camino": [
+        {
+          "archivo": "Controllers/DocumentosController.cs",
+          "linea": 22,
+          "simbolo": "Subir(archivo)",
+          "nota": "archivo.FileName"
+        },
+        {
+          "archivo": "Services/DocumentoService.cs",
+          "linea": 13,
+          "simbolo": "Guardar",
+          "nota": "Path.Combine con el nombre del cliente"
+        },
+        {
+          "archivo": "Services/DocumentoService.cs",
+          "linea": 14,
+          "simbolo": "Guardar",
+          "nota": "File.WriteAllBytes"
+        }
+      ],
+      "saneamiento": "ninguno",
+      "detalle": "No usa Path.GetFileName ni comprueba que la ruta quede dentro de la carpeta.",
+      "estado": "candidato"
+    },
+    {
+      "id": "F-05",
+      "titulo": "Recorrido de rutas al descargar documentos",
+      "cwe": "CWE-22",
+      "fuente": "E-007",
+      "sumidero": "O-010",
+      "camino": [
+        {
+          "archivo": "Controllers/DocumentosController.cs",
+          "linea": 29,
+          "simbolo": "Descargar(nombre)",
+          "nota": "query"
+        },
+        {
+          "archivo": "Services/DocumentoService.cs",
+          "linea": 20,
+          "simbolo": "Leer",
+          "nota": "Path.Combine"
+        },
+        {
+          "archivo": "Services/DocumentoService.cs",
+          "linea": 21,
+          "simbolo": "Leer",
+          "nota": "File.ReadAllBytes"
+        }
+      ],
+      "saneamiento": "ninguno",
+      "detalle": "Un nombre absoluto o con ../ sale de la carpeta.",
+      "estado": "candidato"
+    },
+    {
+      "id": "F-06",
+      "titulo": "Deserialización con tipos controlados por el cliente",
+      "cwe": "CWE-502",
+      "fuente": "E-008",
+      "sumidero": "O-012",
+      "camino": [
+        {
+          "archivo": "Controllers/DocumentosController.cs",
+          "linea": 35,
+          "simbolo": "Importar(archivo)",
+          "nota": "contenido del archivo subido"
+        },
+        {
+          "archivo": "Services/DocumentoService.cs",
+          "linea": 28,
+          "simbolo": "Importar",
+          "nota": "TypeNameHandling.All"
+        },
+        {
+          "archivo": "Services/DocumentoService.cs",
+          "linea": 29,
+          "simbolo": "Importar",
+          "nota": "JsonConvert.DeserializeObject"
+        }
+      ],
+      "saneamiento": "ninguno",
+      "detalle": "",
+      "estado": "candidato"
+    },
+    {
+      "id": "F-07",
+      "titulo": "Inyección de comandos al exportar reportes",
+      "cwe": "CWE-78",
+      "fuente": "E-009",
+      "sumidero": "O-013",
+      "camino": [
+        {
+          "archivo": "Controllers/ReportesController.cs",
+          "linea": 21,
+          "simbolo": "Exportar(formato)",
+          "nota": "query"
+        },
+        {
+          "archivo": "Services/ReporteService.cs",
+          "linea": 27,
+          "simbolo": "Exportar",
+          "nota": "concatenado en /bin/sh -c"
+        }
+      ],
+      "saneamiento": "ninguno",
+      "detalle": "",
+      "estado": "candidato"
+    },
+    {
+      "id": "F-08",
+      "titulo": "Petición del servidor a URL del cliente (SSRF)",
+      "cwe": "CWE-918",
+      "fuente": "E-010",
+      "sumidero": "O-014",
+      "camino": [
+        {
+          "archivo": "Controllers/ReportesController.cs",
+          "linea": 27,
+          "simbolo": "Notificar(dto)",
+          "nota": "dto.WebhookUrl"
+        },
+        {
+          "archivo": "Services/ReporteService.cs",
+          "linea": 36,
+          "simbolo": "Notificar",
+          "nota": "PostAsync(webhookUrl)"
+        }
+      ],
+      "saneamiento": "ninguno",
+      "detalle": "Puede alcanzar servicios internos o metadatos de la nube.",
+      "estado": "candidato"
+    },
+    {
+      "id": "F-09",
+      "titulo": "Redirección abierta en login y cierre de sesión",
+      "cwe": "CWE-601",
+      "fuente": "E-001",
+      "sumidero": "O-002",
+      "camino": [
+        {
+          "archivo": "Controllers/AuthController.cs",
+          "linea": 16,
+          "simbolo": "Login(dto)",
+          "nota": "dto.ReturnUrl"
+        },
+        {
+          "archivo": "Controllers/AuthController.cs",
+          "linea": 25,
+          "simbolo": "Login",
+          "nota": "Redirect(dto.ReturnUrl)"
+        },
+        {
+          "archivo": "Controllers/AuthController.cs",
+          "linea": 35,
+          "simbolo": "Salir",
+          "nota": "Redirect(volverA) — E-002 / O-003"
+        }
+      ],
+      "saneamiento": "ninguno",
+      "detalle": "Relacionado con HU-06.",
+      "estado": "candidato"
+    },
+    {
+      "id": "F-10",
+      "titulo": "Clave registrada en el log",
+      "cwe": "CWE-532",
+      "fuente": "E-001",
+      "sumidero": "O-001",
+      "camino": [
+        {
+          "archivo": "Controllers/AuthController.cs",
+          "linea": 16,
+          "simbolo": "Login(dto)",
+          "nota": "dto.Clave"
+        },
+        {
+          "archivo": "Controllers/AuthController.cs",
+          "linea": 19,
+          "simbolo": "Login",
+          "nota": "LogInformation(... clave={Clave})"
+        }
+      ],
+      "saneamiento": "ninguno",
+      "detalle": "",
+      "estado": "candidato"
+    },
+    {
+      "id": "F-11",
+      "titulo": "ORDER BY concatenado en movimientos",
+      "cwe": "CWE-89",
+      "fuente": "E-011",
+      "sumidero": "O-006",
+      "camino": [
+        {
+          "archivo": "Controllers/ReportesController.cs",
+          "linea": 36,
+          "simbolo": "Movimientos(orden)",
+          "nota": "query"
+        },
+        {
+          "archivo": "Services/ReporteService.cs",
+          "linea": 42,
+          "simbolo": "ListarMovimientos",
+          "nota": "lista blanca ColumnasPermitidas; si no, \"fecha\""
+        },
+        {
+          "archivo": "Repositories/ReporteRepository.cs",
+          "linea": 17,
+          "simbolo": "Movimientos",
+          "nota": "concatenado en ORDER BY"
+        }
+      ],
+      "saneamiento": "completo",
+      "detalle": "Solo llegan fecha, monto o concepto.",
+      "estado": "candidato"
+    }
+  ],
+  "sin_flujo": [
+    {
+      "operacion": "O-015",
+      "motivo": "Valor constante; se trata como gap de identidad (G-03)."
+    }
+  ]
+}

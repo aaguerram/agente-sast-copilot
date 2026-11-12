@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visor PowerPoint</title>
+<!--
+  Visor de presentaciones (.pptx) sin servidor, renderizadas en HTML con pptx-preview.
+  Uso desde un .md (ruta del archivo relativa a docs/):
+    [Ver presentación](../visor/ppt.html?f=datos/presentacion.pptx){ target=_blank }
+  Parámetros: f = archivo (obligatorio), d = número de diapositiva inicial (opcional),
+              v = "lista" para ver todas las diapositivas seguidas (opcional).
+  Solo abre .pptx (formato Office Open XML); el .ppt antiguo no está soportado.
+  Teclado: ← → PgUp PgDn Home End para moverse; Esc vuelve a la vista de una diapositiva.
+-->
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --muted: #656d76; --line: #d0d7de;
+    --head: #f6f8fa; --accent: #4051b5; --hover: #eef1fb; --lienzo: #e9ecf1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1e2129; --fg: #e6e6e6; --muted: #9aa0a6; --line: #3a3f4b;
+      --head: #262a33; --accent: #8c9eff; --hover: #2c3242; --lienzo: #14161c;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding: 10px 16px; border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 16px; margin: 0; overflow-wrap: anywhere; }
+  header .acciones { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  input[type=search] {
+    padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--bg); color: var(--fg); min-width: 0; width: 200px;
+  }
+  .boton {
+    padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px;
+    background: none; color: var(--fg); text-decoration: none; white-space: nowrap;
+    font: inherit; cursor: pointer;
+  }
+  .boton:hover { background: var(--hover); }
+  .boton:disabled { opacity: .4; cursor: default; background: none; }
+  nav {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    padding: 6px 16px; border-bottom: 1px solid var(--line); background: var(--head);
+    color: var(--muted);
+  }
+  nav[hidden] { display: none; }
+  nav button {
+    border: 0; background: none; color: var(--accent); cursor: pointer;
+    padding: 6px 10px; font: inherit; font-weight: 600; white-space: nowrap;
+  }
+  nav button:disabled { color: var(--muted); opacity: .5; cursor: default; }
+  nav #contador { font-variant-numeric: tabular-nums; min-width: 6em; text-align: center; }
+  nav #coincidencias { color: var(--accent); }
+  main { flex: 1; overflow: auto; background: var(--lienzo); padding: 16px; }
+  #escala { margin: 0 auto; overflow: hidden; }
+  .pptx-preview-wrapper { background: transparent !important; width: auto !important; margin: 0 !important; }
+  .pptx-preview-slide-wrapper { box-shadow: 0 2px 10px rgba(0,0,0,.25); }
+  .lista .pptx-preview-slide-wrapper { cursor: zoom-in; }
+  .pptx-preview-slide-wrapper.oculta { display: none !important; }
+  .mensaje { padding: 24px 16px; color: var(--muted); }
+  .error { color: #cf222e; }
+  @media (max-width: 600px) {
+    header .acciones { margin-left: 0; width: 100%; }
+    input[type=search] { flex: 1; }
+    main { padding: 8px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titulo">Visor PowerPoint</h1>
+  <div class="acciones">
+    <input id="buscar" type="search" placeholder="Buscar texto…" aria-label="Buscar texto en las diapositivas">
+    <button id="modo" class="boton" type="button" hidden>Ver todas</button>
+    <a id="descargar" class="boton" hidden download>Descargar</a>
+  </div>
+</header>
+<nav id="paginador" hidden>
+  <button id="anterior" type="button" aria-label="Diapositiva anterior">‹ Anterior</button>
+  <span id="contador">– / –</span>
+  <button id="siguiente" type="button" aria-label="Diapositiva siguiente">Siguiente ›</button>
+  <span id="coincidencias"></span>
+</nav>
+<main id="contenido">
+  <p class="mensaje" id="estado">Cargando…</p>
+  <div id="escala" hidden><div id="lienzo"></div></div>
+</main>
+
+<script src="pptx-preview.umd.js"></script>
+<script>
+(function () {
+  const ANCHO = 960; // ancho interno de render; luego se escala al espacio disponible
+  const params = new URLSearchParams(location.search);
+  const archivo = params.get("f");
+  const contenido = document.getElementById("contenido");
+  const estado = document.getElementById("estado");
+  const escala = document.getElementById("escala");
+  const lienzo = document.getElementById("lienzo");
+  const paginador = document.getElementById("paginador");
+  const contador = document.getElementById("contador");
+  const coincidencias = document.getElementById("coincidencias");
+  const anterior = document.getElementById("anterior");
+  const siguiente = document.getElementById("siguiente");
+  const modo = document.getElementById("modo");
+  const buscar = document.getElementById("buscar");
+
+  function mensaje(texto, esError) {
+    estado.hidden = false;
+    estado.className = "mensaje" + (esError ? " error" : "");
+    estado.textContent = texto;
+    escala.hidden = true;
+  }
+
+  if (!archivo) {
+    mensaje("Falta el parámetro ?f= con la ruta del archivo (relativa a docs/).", true);
+    return;
+  }
+
+  // La ruta se resuelve contra la raíz del sitio (carpeta padre de visor/)
+  // y solo se aceptan archivos del mismo origen.
+  const raiz = new URL("../", location.href);
+  const url = new URL(archivo, raiz);
+  if (url.origin !== location.origin) {
+    mensaje("Solo se pueden abrir archivos del propio sitio.", true);
+    return;
+  }
+
+  const nombre = decodeURIComponent(url.pathname.split("/").pop());
+  document.title = nombre + " · Visor PowerPoint";
+  document.getElementById("titulo").textContent = nombre;
+  const descargar = document.getElementById("descargar");
+  descargar.href = url.href;
+  descargar.hidden = false;
+
+  let diapositivas = [];   // elementos .pptx-preview-slide-wrapper, en orden
+  let textos = [];         // texto plano de cada diapositiva, en minúsculas
+  let wrapper = null;
+  let actual = 0;
+  let lista = params.get("v") === "lista";
+  let altoDiapositiva = 0;
+
+  fetch(url)
+    .then(r => {
+      if (!r.ok) throw new Error("No se encontró " + archivo + " (HTTP " + r.status + ")");
+      return r.arrayBuffer();
+    })
+    .then(datos => {
+      const visor = pptxPreview.init(lienzo, { width: ANCHO, mode: "list" });
+      return visor.preview(datos);
+    })
+    .then(() => {
+      wrapper = lienzo.querySelector(".pptx-preview-wrapper");
+      diapositivas = Array.from(lienzo.querySelectorAll(".pptx-preview-slide-wrapper"));
+      if (!diapositivas.length) { mensaje("La presentación no tiene diapositivas."); return; }
+      altoDiapositiva = diapositivas[0].offsetHeight || parseFloat(diapositivas[0].style.height) || ANCHO * 9 / 16;
+      // El texto se lee del DOM renderizado; echarts dibuja los gráficos un tick después,
+      // pero sus etiquetas no hacen falta para la búsqueda.
+      textos = diapositivas.map(d => d.textContent.replace(/\s+/g, " ").toLowerCase());
+
+      estado.hidden = true;
+      escala.hidden = false;
+      paginador.hidden = false;
+      modo.hidden = false;
+
+      const d = parseInt(params.get("d"), 10);
+      actual = d >= 1 && d <= diapositivas.length ? d - 1 : 0;
+      aplicarVista();
+    })
+    .catch(e => mensaje(e.message || String(e), true));
+
+  // ---- vista y navegación -------------------------------------------------
+
+  function visibles() {
+    const q = buscar.value.trim().toLowerCase();
+    if (!q) return diapositivas.map((_, i) => i);
+    return textos.map((t, i) => t.includes(q) ? i : -1).filter(i => i >= 0);
+  }
+
+  function aplicarVista() {
+    const q = buscar.value.trim().toLowerCase();
+    const vis = visibles();
+    contenido.classList.toggle("lista", lista);
+    modo.textContent = lista ? "Ver una" : "Ver todas";
+    diapositivas.forEach((d, i) => {
+      const mostrar = lista ? vis.includes(i) : i === actual;
+      d.classList.toggle("oculta", !mostrar);
+    });
+    anterior.disabled = lista || actual === 0;
+    siguiente.disabled = lista || actual === diapositivas.length - 1;
+    contador.textContent = lista
+      ? (q ? vis.length + " de " + diapositivas.length : diapositivas.length + " diapositivas")
+      : (actual + 1) + " / " + diapositivas.length;
+    if (q && !lista) {
+      const n = vis.length;
+      coincidencias.textContent = n
+        ? n + (n === 1 ? " coincidencia" : " coincidencias") + " · Enter para la siguiente"
+        : "Sin coincidencias";
+    } else {
+      coincidencias.textContent = "";
+    }
+
+    const p = new URLSearchParams(location.search);
+    p.set("d", String(actual + 1));
+    if (lista) p.set("v", "lista"); else p.delete("v");
+    history.replaceState(null, "", "?" + p.toString());
+    ajustar();
+  }
+
+  function ir(i) {
+    if (!diapositivas.length) return;
+    actual = Math.max(0, Math.min(diapositivas.length - 1, i));
+    aplicarVista();
+    contenido.scrollTop = 0;
+  }
+
+  function ajustar() {
+    if (!wrapper) return;
+    const estilo = getComputedStyle(contenido);
+    const anchoLibre = contenido.clientWidth - parseFloat(estilo.paddingLeft) - parseFloat(estilo.paddingRight);
+    let k = Math.min(1, anchoLibre / ANCHO);
+    if (!lista) {
+      const altoLibre = contenido.clientHeight - parseFloat(estilo.paddingTop) - parseFloat(estilo.paddingBottom);
+      k = Math.min(k, altoLibre / altoDiapositiva);
+    }
+    k = Math.max(k, 0.1);
+    wrapper.style.transform = "scale(" + k + ")";
+    wrapper.style.transformOrigin = "top left";
+    escala.style.width = (ANCHO * k) + "px";
+    escala.style.height = (wrapper.offsetHeight * k) + "px";
+  }
+
+  anterior.onclick = () => ir(actual - 1);
+  siguiente.onclick = () => ir(actual + 1);
+  modo.onclick = () => { lista = !lista; aplicarVista(); contenido.scrollTop = 0; };
+
+  // En la vista de lista, pulsar una diapositiva la abre sola.
+  lienzo.addEventListener("click", e => {
+    if (!lista) return;
+    const d = e.target.closest(".pptx-preview-slide-wrapper");
+    if (!d) return;
+    lista = false;
+    ir(diapositivas.indexOf(d));
+  });
+
+  buscar.addEventListener("input", () => {
+    const vis = visibles();
+    if (!lista && vis.length && !vis.includes(actual)) actual = vis[0];
+    aplicarVista();
+  });
+  buscar.addEventListener("keydown", e => {
+    if (e.key !== "Enter" || lista) return;
+    const vis = visibles();
+    if (!vis.length) return;
+    const sig = vis.find(i => i > actual);
+    ir(sig !== undefined ? sig : vis[0]);
+  });
+
+  document.addEventListener("keydown", e => {
+    if (e.target === buscar || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.key === "Escape" && lista) { lista = false; aplicarVista(); return; }
+    if (lista) return;
+    switch (e.key) {
+      case "ArrowRight": case "ArrowDown": case "PageDown": case " ": ir(actual + 1); break;
+      case "ArrowLeft": case "ArrowUp": case "PageUp": ir(actual - 1); break;
+      case "Home": ir(0); break;
+      case "End": ir(diapositivas.length - 1); break;
+      default: return;
+    }
+    e.preventDefault();
+  });
+
+  let pendiente = 0;
+  window.addEventListener("resize", () => {
+    cancelAnimationFrame(pendiente);
+    pendiente = requestAnimationFrame(ajustar);
+  });
+})();
+</script>
+</body>
+</html>

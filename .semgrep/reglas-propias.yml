@@ -1,0 +1,37 @@
+# Reglas propias del proyecto (complementan las del registro de Semgrep).
+# Cubren "URLs y valores quemados" de docs/recomendaciones.md.
+rules:
+  - id: csharp-url-quemada
+    languages: [csharp]
+    severity: ERROR
+    message: >-
+      URL quemada en el código. Muévela a configuración (appsettings.json o variable
+      de entorno) para que cambie por ambiente sin recompilar.
+    metadata:
+      category: security
+      cwe: "CWE-547: Use of Hard-coded, Security-relevant Constants"
+      owasp: "A05:2021 - Security Misconfiguration"
+    pattern-regex: '"https?://[^"\s]+"'
+
+  - id: csharp-cadena-conexion-con-clave
+    languages: [csharp]
+    severity: ERROR
+    message: >-
+      Cadena de conexión con contraseña quemada. Usa un gestor de secretos o una
+      variable de entorno; nunca la versiones.
+    metadata:
+      category: security
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+      owasp: "A07:2021 - Identification and Authentication Failures"
+    pattern-regex: '(?i)"[^"\n]*(password|pwd)\s*=\s*[^;"\s]+[^"\n]*"'
+
+  - id: config-secreto-quemado
+    languages: [json, yaml]
+    severity: ERROR
+    message: >-
+      Posible secreto quemado en un archivo de configuración. Déjalo vacío en el
+      repositorio e inyéctalo por variable de entorno o variable secreta del pipeline.
+    metadata:
+      category: security
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+    pattern-regex: '(?i)"?(password|passwd|secret|api[_-]?key|token|connectionstring)"?\s*:\s*"?[A-Za-z0-9+/=_\-\.]{12,}"?'

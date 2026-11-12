@@ -1,0 +1,25 @@
+# Semgrep no analiza:
+
+# Terceros / generado
+docs/visor/
+docs/datos/
+docs/hackapro-bases.md
+rickmorty-clean/src/RickMorty.Infrastructure/Data/*.json
+salida/
+site/
+reportes/
+bin/
+obj/
+
+# Código DELIBERADAMENTE vulnerable: es la muestra con la que se generan los reportes
+# de demo del agente SAST. Se escanea aparte, sin bloquear (ver azure-pipelines.yml).
+agente-sast-g7/samples/
+
+# Las propias reglas contienen los patrones que buscan
+.semgrep/
+
+# Proyectos objetivo del concurso (no versionados; se escanean aparte con semgrep-objetivo)
+objetivos/
+
+# Fixtures de los hooks .NET: contienen patrones inseguros a propósito
+tools/pre-commit-hooks/tests/fixtures/

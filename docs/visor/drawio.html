@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visor draw.io</title>
+<!--
+  Visor de diagramas draw.io (.drawio) con el visor oficial de diagrams.net
+  (drawio-viewer.min.js local). Algunos íconos y formas se descargan de
+  diagrams.net al abrir, así que esos necesitan internet.
+  Uso desde un .md (ruta del archivo relativa a docs/):
+    [Ver diagrama](../visor/drawio.html?f=datos/diagrama.drawio){ target=_blank }
+  Parámetros: f = archivo (obligatorio).
+-->
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --muted: #656d76; --line: #d0d7de;
+    --hover: #eef1fb; --lienzo: #e9ecf1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1e2129; --fg: #e6e6e6; --muted: #9aa0a6; --line: #3a3f4b;
+      --hover: #2c3242; --lienzo: #14161c;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding: 10px 16px; border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 16px; margin: 0; overflow-wrap: anywhere; }
+  header .acciones { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .boton {
+    padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px;
+    background: none; color: var(--fg); text-decoration: none; white-space: nowrap;
+  }
+  .boton:hover { background: var(--hover); }
+  main { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; background: var(--lienzo); padding: 16px; }
+  #diagrama {
+    flex: 1; min-height: 0; max-width: 100%; overflow: hidden; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.25);
+  }
+  #diagrama[hidden] { display: none; }
+  .mensaje { padding: 24px 16px; color: var(--muted); }
+  .error { color: #cf222e; }
+  @media (max-width: 600px) {
+    header .acciones { margin-left: 0; width: 100%; }
+    main { padding: 8px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titulo">Visor draw.io</h1>
+  <div class="acciones">
+    <a id="descargar" class="boton" hidden download>Descargar</a>
+  </div>
+</header>
+<main id="contenido">
+  <p class="mensaje" id="estado">Cargando…</p>
+  <div id="diagrama" hidden></div>
+</main>
+<script src="drawio-viewer.min.js"></script>
+<script>
+(function () {
+  const params = new URLSearchParams(location.search);
+  const archivo = params.get("f");
+  const estado = document.getElementById("estado");
+
+  function mensaje(texto, esError) {
+    estado.hidden = false;
+    estado.className = "mensaje" + (esError ? " error" : "");
+    estado.textContent = texto;
+  }
+
+  if (!archivo) {
+    mensaje("Falta el parámetro ?f= con la ruta del archivo (relativa a docs/).", true);
+    return;
+  }
+
+  // La ruta se resuelve contra la raíz del sitio (carpeta padre de visor/)
+  // y solo se aceptan archivos del mismo origen.
+  const raiz = new URL("../", location.href);
+  const url = new URL(archivo, raiz);
+  if (url.origin !== location.origin) {
+    mensaje("Solo se pueden abrir archivos del propio sitio.", true);
+    return;
+  }
+
+  const nombre = decodeURIComponent(url.pathname.split("/").pop());
+  document.title = nombre + " · Visor draw.io";
+  document.getElementById("titulo").textContent = nombre;
+  const descargar = document.getElementById("descargar");
+  descargar.href = url.href;
+  descargar.hidden = false;
+
+  fetch(url.href)
+    .then(r => {
+      if (!r.ok) throw new Error("No se encontró " + archivo);
+      return r.text();
+    })
+    .then(xml => {
+      estado.hidden = true;
+      const div = document.getElementById("diagrama");
+      div.hidden = false;
+      // el diagrama ocupa todo el espacio y se ajusta a él; la barra de diagrams.net
+      // trae páginas, zoom, capas y pantalla completa
+      div.setAttribute("data-mxgraph", JSON.stringify({
+        xml: xml, toolbar: "pages zoom layers lightbox", "toolbar-nohide": true,
+        "toolbar-position": "top", nav: true, resize: false,
+        "auto-fit": true, highlight: "#4051b5", lightbox: false
+      }));
+      GraphViewer.createViewerForElement(div);
+    })
+    .catch(e => mensaje(e.message || String(e), true));
+})();
+</script>
+</body>
+</html>

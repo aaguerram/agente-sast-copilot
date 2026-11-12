@@ -1,0 +1,33 @@
+# Finales de línea fijos para que el repo funcione igual clonado en Linux, macOS o Windows,
+# sin importar core.autocrlf. Los scripts se ejecutan dentro de contenedores Linux:
+# un .sh con CRLF falla ("bad interpreter" / "$'\r': command not found").
+#
+# Todo el texto se guarda y se extrae con LF. PowerShell 7 (y Windows PowerShell 5.1)
+# leen LF sin problema, así que los .ps1 también van con LF: un único formato evita
+# diffs de solo finales de línea y que los hooks de pre-commit los reescriban.
+# Los .ps1 llevan además BOM UTF-8 (lo pide PSScriptAnalyzer para archivos con tildes).
+* text=auto eol=lf
+
+*.sh        text eol=lf
+*.ps1       text eol=lf
+*.py        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.toml      text eol=lf
+*.md        text eol=lf
+*.json      text eol=lf
+*.cs        text eol=lf
+*.csproj    text eol=lf
+*.sln       text eol=lf
+*.txt       text eol=lf
+Dockerfile  text eol=lf
+.pre-commit-config.yaml text eol=lf
+
+# Binarios: nunca se convierten.
+*.pptx  binary
+*.docx  binary
+*.xlsx  binary
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.zip   binary

@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visor Excel</title>
+<!--
+  Visor de hojas de cálculo (.xlsx, .xls, .ods, .csv) sin servidor.
+  Uso desde un .md (ruta del archivo relativa a docs/):
+    [Ver matriz](../visor/excel.html?f=datos/matriz.xlsx){ target=_blank }
+  Parámetros: f = archivo (obligatorio), h = nombre de la hoja inicial (opcional).
+-->
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --muted: #656d76; --line: #d0d7de;
+    --head: #f6f8fa; --accent: #4051b5; --hover: #eef1fb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1e2129; --fg: #e6e6e6; --muted: #9aa0a6; --line: #3a3f4b;
+      --head: #262a33; --accent: #8c9eff; --hover: #2c3242;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding: 10px 16px; border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 16px; margin: 0; overflow-wrap: anywhere; }
+  header .acciones { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  input[type=search] {
+    padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--bg); color: var(--fg); min-width: 0; width: 200px;
+  }
+  a.boton {
+    padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px;
+    color: var(--fg); text-decoration: none; white-space: nowrap;
+  }
+  a.boton:hover { background: var(--hover); }
+  nav {
+    display: flex; gap: 2px; padding: 0 16px; overflow-x: auto;
+    border-bottom: 1px solid var(--line); background: var(--head);
+  }
+  nav button {
+    border: 0; background: none; color: var(--muted); cursor: pointer;
+    padding: 8px 14px; font: inherit; white-space: nowrap;
+    border-bottom: 2px solid transparent;
+  }
+  nav button[aria-selected=true] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  main { flex: 1; overflow: auto; }
+  table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  td, th { border: 1px solid var(--line); padding: 4px 8px; white-space: pre-wrap; vertical-align: top; }
+  thead th {
+    position: sticky; top: 0; background: var(--head); color: var(--muted);
+    font-weight: 500; z-index: 1;
+  }
+  tbody th {
+    position: sticky; left: 0; background: var(--head); color: var(--muted);
+    font-weight: 500; text-align: right;
+  }
+  tbody tr:hover td { background: var(--hover); }
+  tr.oculta { display: none; }
+  /* Barra de fórmulas: muestra la celda seleccionada (solo lectura) */
+  #barra {
+    display: flex; align-items: stretch; border-bottom: 1px solid var(--line);
+    font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  #barra .ref {
+    min-width: 72px; padding: 6px 10px; border-right: 1px solid var(--line);
+    color: var(--muted); text-align: center;
+  }
+  #barra .fx { padding: 6px 10px; border-right: 1px solid var(--line); color: var(--muted); font-style: italic; }
+  #barra .texto {
+    flex: 1; padding: 6px 10px; overflow-x: auto; white-space: pre;
+    user-select: text; min-width: 0;
+  }
+  #barra .texto.formula { color: var(--accent); }
+  td { cursor: cell; }
+  td.con-formula { background-image: linear-gradient(225deg, var(--accent) 5px, transparent 5px); }
+  td.seleccionada { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .mensaje { padding: 24px 16px; color: var(--muted); }
+  .error { color: #cf222e; }
+  @media (max-width: 600px) {
+    header .acciones { margin-left: 0; width: 100%; }
+    input[type=search] { flex: 1; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titulo">Visor Excel</h1>
+  <div class="acciones">
+    <input id="buscar" type="search" placeholder="Filtrar filas…" aria-label="Filtrar filas">
+    <a id="descargar" class="boton" hidden download>Descargar</a>
+  </div>
+</header>
+<nav id="hojas" role="tablist"></nav>
+<div id="barra" aria-live="polite">
+  <span class="ref" id="barra-ref">&nbsp;</span>
+  <span class="fx">fx</span>
+  <span class="texto" id="barra-texto">Haz clic en una celda para ver su fórmula</span>
+</div>
+<main id="contenido"><p class="mensaje">Cargando…</p></main>
+
+<script src="xlsx.full.min.js"></script>
+<script>
+(function () {
+  const params = new URLSearchParams(location.search);
+  const archivo = params.get("f");
+  const contenido = document.getElementById("contenido");
+  const hojas = document.getElementById("hojas");
+  const buscar = document.getElementById("buscar");
+  const barraRef = document.getElementById("barra-ref");
+  const barraTexto = document.getElementById("barra-texto");
+  let hojaActual = null;
+
+  function mensaje(texto, esError) {
+    contenido.innerHTML = "";
+    const p = document.createElement("p");
+    p.className = "mensaje" + (esError ? " error" : "");
+    p.textContent = texto;
+    contenido.appendChild(p);
+  }
+
+  if (!archivo) {
+    mensaje("Falta el parámetro ?f= con la ruta del archivo (relativa a docs/).", true);
+    return;
+  }
+
+  // La ruta se resuelve contra la raíz del sitio (carpeta padre de visor/)
+  // y solo se aceptan archivos del mismo origen.
+  const raiz = new URL("../", location.href);
+  const url = new URL(archivo, raiz);
+  if (url.origin !== location.origin) {
+    mensaje("Solo se pueden abrir archivos del propio sitio.", true);
+    return;
+  }
+
+  const nombre = decodeURIComponent(url.pathname.split("/").pop());
+  document.title = nombre + " · Visor Excel";
+  document.getElementById("titulo").textContent = nombre;
+  const descargar = document.getElementById("descargar");
+  descargar.href = url.href;
+  descargar.hidden = false;
+
+  fetch(url)
+    .then(r => {
+      if (!r.ok) throw new Error("No se encontró " + archivo + " (HTTP " + r.status + ")");
+      return r.arrayBuffer();
+    })
+    .then(datos => {
+      const libro = XLSX.read(datos, { cellDates: true });
+      const inicial = libro.SheetNames.includes(params.get("h")) ? params.get("h") : libro.SheetNames[0];
+      libro.SheetNames.forEach(n => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.role = "tab";
+        b.textContent = n;
+        b.onclick = () => mostrar(libro, n);
+        hojas.appendChild(b);
+      });
+      mostrar(libro, inicial);
+    })
+    .catch(e => mensaje(e.message, true));
+
+  function mostrar(libro, nombreHoja) {
+    for (const b of hojas.children) b.setAttribute("aria-selected", b.textContent === nombreHoja);
+    const p = new URLSearchParams(location.search);
+    p.set("h", nombreHoja);
+    history.replaceState(null, "", "?" + p.toString());
+
+    const hoja = libro.Sheets[nombreHoja];
+    hojaActual = hoja;
+    seleccionar(null);
+    if (!hoja["!ref"]) { mensaje("La hoja está vacía."); return; }
+    const rango = XLSX.utils.decode_range(hoja["!ref"]);
+    const combinadas = hoja["!merges"] || [];
+    const tapadas = new Set();
+    const span = {};
+    combinadas.forEach(m => {
+      span[m.s.r + ":" + m.s.c] = m;
+      for (let r = m.s.r; r <= m.e.r; r++)
+        for (let c = m.s.c; c <= m.e.c; c++)
+          if (r !== m.s.r || c !== m.s.c) tapadas.add(r + ":" + c);
+    });
+
+    const tabla = document.createElement("table");
+    const thead = tabla.createTHead().insertRow();
+    thead.appendChild(document.createElement("th"));
+    for (let c = rango.s.c; c <= rango.e.c; c++) {
+      const th = document.createElement("th");
+      th.textContent = XLSX.utils.encode_col(c);
+      thead.appendChild(th);
+    }
+    const tbody = tabla.createTBody();
+    for (let r = rango.s.r; r <= rango.e.r; r++) {
+      const fila = tbody.insertRow();
+      const th = document.createElement("th");
+      th.textContent = r + 1;
+      fila.appendChild(th);
+      for (let c = rango.s.c; c <= rango.e.c; c++) {
+        const k = r + ":" + c;
+        if (tapadas.has(k)) continue;
+        const td = fila.insertCell();
+        td.dataset.ref = XLSX.utils.encode_cell({ r, c });
+        const celda = hoja[XLSX.utils.encode_cell({ r, c })];
+        if (celda) {
+          td.textContent = XLSX.utils.format_cell(celda);
+          if (celda.t === "n" || celda.t === "d") td.style.textAlign = "right";
+          if (celda.f) { td.title = "=" + celda.f; td.classList.add("con-formula"); }
+        }
+        const m = span[k];
+        if (m) { td.rowSpan = m.e.r - m.s.r + 1; td.colSpan = m.e.c - m.s.c + 1; }
+      }
+    }
+    contenido.innerHTML = "";
+    contenido.appendChild(tabla);
+    filtrar();
+  }
+
+  function filtrar() {
+    const q = buscar.value.trim().toLowerCase();
+    const filas = contenido.querySelectorAll("tbody tr");
+    filas.forEach((tr, i) => {
+      if (i === 0 || !q) { tr.classList.remove("oculta"); return; } // la fila 1 suele ser el encabezado
+      tr.classList.toggle("oculta", !tr.textContent.toLowerCase().includes(q));
+    });
+  }
+  buscar.addEventListener("input", filtrar);
+
+  // Al hacer clic en una celda, la barra muestra su fórmula (o su valor si no tiene).
+  function seleccionar(td) {
+    contenido.querySelector("td.seleccionada")?.classList.remove("seleccionada");
+    barraTexto.classList.remove("formula");
+    if (!td) {
+      barraRef.innerHTML = "&nbsp;";
+      barraTexto.textContent = "Haz clic en una celda para ver su fórmula";
+      return;
+    }
+    td.classList.add("seleccionada");
+    barraRef.textContent = td.dataset.ref;
+    const celda = hojaActual[td.dataset.ref];
+    if (celda && celda.f) {
+      barraTexto.textContent = "=" + celda.f;
+      barraTexto.classList.add("formula");
+    } else {
+      barraTexto.textContent = celda ? XLSX.utils.format_cell(celda) : "";
+    }
+  }
+  contenido.addEventListener("click", e => {
+    const td = e.target.closest("td");
+    if (td) seleccionar(td);
+  });
+})();
+</script>
+</body>
+</html>

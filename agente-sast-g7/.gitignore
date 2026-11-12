@@ -1,0 +1,16 @@
+# Secretos y entorno — NUNCA versionar (regla del hackathon)
+.env
+*.pat
+*.token
+secrets.*
+
+# Salidas de ejecución
+salida/
+*.sarif
+reportes/*.json
+__pycache__/
+*.pyc
+
+# .NET
+bin/
+obj/

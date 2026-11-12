@@ -1,0 +1,149 @@
+{
+  "paso": "operaciones",
+  "ruta": "agente-sast-g7/samples/app-vulnerable",
+  "generado_por": "agente-sast-g7/scripts/metodologia.py (heurístico, sin razonamiento)",
+  "total": 14,
+  "candidatos": [
+    {
+      "id": "O-001",
+      "archivo": "Controllers/AuthController.cs",
+      "linea": 19,
+      "categoria": "log-sensible",
+      "cwe": "CWE-532",
+      "codigo": "_logger.LogInformation(\"Intento de login usuario={Usuario} clave={Clave}\", dto.Usuario, dto.Clave);",
+      "confianza": "alta",
+      "metodo": "Login"
+    },
+    {
+      "id": "O-002",
+      "archivo": "Controllers/AuthController.cs",
+      "linea": 25,
+      "categoria": "redireccion",
+      "cwe": "CWE-601",
+      "codigo": "return Redirect(dto.ReturnUrl ?? \"/\");",
+      "confianza": "alta",
+      "metodo": "Login"
+    },
+    {
+      "id": "O-003",
+      "archivo": "Controllers/AuthController.cs",
+      "linea": 35,
+      "categoria": "redireccion",
+      "cwe": "CWE-601",
+      "codigo": "return Redirect(volverA);",
+      "confianza": "alta",
+      "metodo": "Salir"
+    },
+    {
+      "id": "O-004",
+      "archivo": "Repositories/CuentaRepository.cs",
+      "linea": 26,
+      "categoria": "sql-dinamico",
+      "cwe": "CWE-89",
+      "codigo": "var sql = \"SELECT Id, ClienteId, Titular, Numero, Saldo FROM Cuentas WHERE Titular LIKE '%\" + titular + \"%'\";",
+      "confianza": "alta",
+      "metodo": "BuscarPorTitular"
+    },
+    {
+      "id": "O-005",
+      "archivo": "Repositories/CuentaRepository.cs",
+      "linea": 38,
+      "categoria": "sql-dinamico",
+      "cwe": "CWE-89",
+      "codigo": "using var cmd = new SqlCommand($\"SELECT Id, ClienteId, Titular, Numero, Saldo FROM Cuentas WHERE ClienteId = {clienteId}\", conn);",
+      "confianza": "alta",
+      "metodo": "DeCliente"
+    },
+    {
+      "id": "O-006",
+      "archivo": "Repositories/ReporteRepository.cs",
+      "linea": 17,
+      "categoria": "sql-dinamico",
+      "cwe": "CWE-89",
+      "codigo": "var sql = \"SELECT Fecha, Concepto, Monto FROM Movimientos ORDER BY \" + columna;",
+      "confianza": "alta",
+      "metodo": "Movimientos"
+    },
+    {
+      "id": "O-007",
+      "archivo": "Repositories/TransferenciaRepository.cs",
+      "linea": 16,
+      "categoria": "sql-dinamico",
+      "cwe": "CWE-89",
+      "codigo": "var sql = \"INSERT INTO Transferencias (Origen, Destino, Monto, Concepto) OUTPUT INSERTED.Id VALUES (\" + origen + \", '\" + destino + \"', \" + monto + \", '\" + concepto + \"')\";",
+      "confianza": "alta",
+      "metodo": "Registrar"
+    },
+    {
+      "id": "O-008",
+      "archivo": "Services/DocumentoService.cs",
+      "linea": 13,
+      "categoria": "ruta-archivo",
+      "cwe": "CWE-22",
+      "codigo": "var ruta = Path.Combine(Carpeta, nombreArchivo);",
+      "confianza": "alta",
+      "metodo": "Guardar"
+    },
+    {
+      "id": "O-009",
+      "archivo": "Services/DocumentoService.cs",
+      "linea": 14,
+      "categoria": "ruta-archivo",
+      "cwe": "CWE-22",
+      "codigo": "File.WriteAllBytes(ruta, contenido);",
+      "confianza": "alta",
+      "metodo": "Guardar"
+    },
+    {
+      "id": "O-010",
+      "archivo": "Services/DocumentoService.cs",
+      "linea": 20,
+      "categoria": "ruta-archivo",
+      "cwe": "CWE-22",
+      "codigo": "var ruta = Path.Combine(Carpeta, nombre);",
+      "confianza": "alta",
+      "metodo": "Leer"
+    },
+    {
+      "id": "O-011",
+      "archivo": "Services/DocumentoService.cs",
+      "linea": 21,
+      "categoria": "ruta-archivo",
+      "cwe": "CWE-22",
+      "codigo": "return File.ReadAllBytes(ruta);",
+      "confianza": "alta",
+      "metodo": "Leer"
+    },
+    {
+      "id": "O-012",
+      "archivo": "Services/DocumentoService.cs",
+      "linea": 29,
+      "categoria": "deserializacion",
+      "cwe": "CWE-502",
+      "codigo": "return JsonConvert.DeserializeObject(lector.ReadToEnd(), ajustes);",
+      "confianza": "alta",
+      "metodo": "Importar",
+      "detalle": "TypeNameHandling inseguro en 'ajustes' (línea 28)"
+    },
+    {
+      "id": "O-013",
+      "archivo": "Services/ReporteService.cs",
+      "linea": 27,
+      "categoria": "comando-sistema",
+      "cwe": "CWE-78",
+      "codigo": "var proceso = Process.Start(\"/bin/sh\", \"-c \\\"/opt/banco/exportar --formato \" + formato + \"\\\"\");",
+      "confianza": "alta",
+      "metodo": "Exportar"
+    },
+    {
+      "id": "O-014",
+      "archivo": "Services/ReporteService.cs",
+      "linea": 36,
+      "categoria": "peticion-saliente",
+      "cwe": "CWE-918",
+      "codigo": "await cliente.PostAsync(webhookUrl, new StringContent(mensaje));",
+      "confianza": "alta",
+      "metodo": "Notificar"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="*" /> <!-- ESPERA dotnet-paquete-version-flotante -->
+    <PackageReference Include="Serilog" Version="4.*" /> <!-- ESPERA dotnet-paquete-version-flotante -->
+    <PackageReference Include="Polly">
+      <Version>8.*</Version> <!-- ESPERA dotnet-paquete-version-flotante -->
+    </PackageReference>
+  </ItemGroup>
+</Project>

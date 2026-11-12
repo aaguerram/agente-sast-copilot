@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visor Word</title>
+<!--
+  Visor de documentos Word (.docx) sin servidor.
+  Uso desde un .md (ruta del archivo relativa a docs/):
+    [Ver informe](../visor/word.html?f=datos/informe.docx){ target=_blank }
+  Parámetros: f = archivo (obligatorio).
+  El formato antiguo .doc no está soportado: hay que guardarlo antes como .docx.
+-->
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --muted: #656d76; --line: #d0d7de;
+    --head: #f6f8fa; --accent: #4051b5; --hover: #eef1fb; --lienzo: #eef0f3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1e2129; --fg: #e6e6e6; --muted: #9aa0a6; --line: #3a3f4b;
+      --head: #262a33; --accent: #8c9eff; --hover: #2c3242; --lienzo: #15171c;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding: 10px 16px; border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 16px; margin: 0; overflow-wrap: anywhere; }
+  header .acciones { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  a.boton {
+    padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px;
+    color: var(--fg); text-decoration: none; white-space: nowrap;
+  }
+  a.boton:hover { background: var(--hover); }
+  /* El documento se dibuja como páginas blancas sobre un lienzo gris,
+     igual que en Word, también en modo oscuro. */
+  main { flex: 1; overflow: auto; background: var(--lienzo); }
+  main .docx-wrapper { background: var(--lienzo); padding: 24px 12px; }
+  main .docx-wrapper > section.docx { box-shadow: 0 1px 4px rgba(0, 0, 0, .25); margin-bottom: 24px; }
+  .mensaje { padding: 24px 16px; color: var(--muted); }
+  .error { color: #cf222e; }
+  @media (max-width: 600px) {
+    header .acciones { margin-left: 0; width: 100%; }
+    main .docx-wrapper { padding: 12px 0; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titulo">Visor Word</h1>
+  <div class="acciones">
+    <a id="descargar" class="boton" hidden download>Descargar</a>
+  </div>
+</header>
+<main id="contenido"><p class="mensaje">Cargando…</p></main>
+
+<script src="jszip.min.js"></script>
+<script src="docx-preview.min.js"></script>
+<script>
+(function () {
+  const params = new URLSearchParams(location.search);
+  const archivo = params.get("f");
+  const contenido = document.getElementById("contenido");
+
+  function mensaje(texto, esError) {
+    contenido.innerHTML = "";
+    const p = document.createElement("p");
+    p.className = "mensaje" + (esError ? " error" : "");
+    p.textContent = texto;
+    contenido.appendChild(p);
+  }
+
+  if (!archivo) {
+    mensaje("Falta el parámetro ?f= con la ruta del archivo (relativa a docs/).", true);
+    return;
+  }
+
+  // La ruta se resuelve contra la raíz del sitio (carpeta padre de visor/)
+  // y solo se aceptan archivos del mismo origen.
+  const raiz = new URL("../", location.href);
+  const url = new URL(archivo, raiz);
+  if (url.origin !== location.origin) {
+    mensaje("Solo se pueden abrir archivos del propio sitio.", true);
+    return;
+  }
+
+  const nombre = decodeURIComponent(url.pathname.split("/").pop());
+  document.title = nombre + " · Visor Word";
+  document.getElementById("titulo").textContent = nombre;
+  const descargar = document.getElementById("descargar");
+  descargar.href = url.href;
+  descargar.hidden = false;
+
+  fetch(url)
+    .then(r => {
+      if (!r.ok) throw new Error("No se encontró " + archivo + " (HTTP " + r.status + ")");
+      return r.blob();
+    })
+    .then(datos => {
+      contenido.innerHTML = "";
+      return docx.renderAsync(datos, contenido, null, {
+        inWrapper: true, ignoreLastRenderedPageBreak: true, experimental: true,
+      });
+    })
+    .catch(e => mensaje("No se pudo abrir el documento: " + e.message, true));
+})();
+</script>
+</body>
+</html>

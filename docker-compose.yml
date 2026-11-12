@@ -1,0 +1,262 @@
+name: agente-pruebas-copilot
+
+# Mismo stack que ../arquitectura_graficos (mismas imágenes), sin Structurizr:
+#   docs      -> sitio MkDocs Material con recarga en vivo, en ${DOCS_PORT}
+#   plantuml  -> renderiza los bloques ```plantuml (solo red interna)
+# Las presentaciones .pptx se abren con el visor de docs/visor/ppt.html.
+
+x-user: &user "${UID:-1000}:${GID:-1000}"
+
+# En Windows/macOS (Docker Desktop) los archivos montados no son del usuario del
+# contenedor y git se niega a leerlos ("dubious ownership"): se marca el repo como seguro.
+x-git-seguro: &git-seguro
+  GIT_CONFIG_COUNT: "1"
+  GIT_CONFIG_KEY_0: safe.directory
+  GIT_CONFIG_VALUE_0: "*"
+
+services:
+  plantuml:
+    image: plantuml/plantuml-server:jetty
+    restart: unless-stopped
+
+  docs:
+    build:
+      context: ./tools/mkdocs
+    user: *user
+    restart: unless-stopped
+    depends_on:
+      - plantuml
+    environment: &docs-env
+      PLANTUML_SERVER: http://plantuml:8080
+    ports:
+      - "${DOCS_PORT:-8300}:8000"
+    volumes: &docs-volumes
+      - ./:/docs
+      - ${SALIDA_DIR:-./salida}:/salida
+    command: ["serve", "--dev-addr=0.0.0.0:8000", "--livereload"]
+
+  # Genera el sitio estático en salida/sitio y salida/sitio.zip.
+  #   docker compose run --rm docs-build
+  docs-build:
+    build:
+      context: ./tools/mkdocs
+    profiles: ["tools"]
+    user: *user
+    depends_on:
+      - plantuml
+    environment: *docs-env
+    volumes: *docs-volumes
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        mkdocs build --strict --site-dir /salida/sitio &&
+        cd /salida && rm -f sitio.zip &&
+        python -m zipfile -c sitio.zip sitio/ &&
+        echo ">> Sitio en salida/sitio y salida/sitio.zip"
+
+  # ---------------------------------------------------------------- seguridad
+  # Mismos controles y versiones que azure-pipelines.yml, sin instalar nada en el host.
+  # Solo arrancan con el perfil "seguridad":
+  #   docker compose --profile seguridad run --rm pre-commit
+  #   docker compose --profile seguridad run --rm gitleaks
+  #   docker compose --profile seguridad run --rm semgrep
+  #   docker compose --profile seguridad run --rm semgrep-demo
+  #   docker compose --profile seguridad run --rm sonarqube
+  # Reportes en salida/reportes/.
+  pre-commit:
+    image: python:3.12
+    profiles: ["seguridad"]
+    user: *user
+    working_dir: /repo
+    environment:
+      <<: *git-seguro
+      HOME: /cache
+      PRE_COMMIT_HOME: /cache/pre-commit
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    volumes:
+      - ./:/repo
+      - ${PRE_COMMIT_CACHE:-${HOME}/.cache/agente-pruebas-pre-commit}:/cache   # fuera del repo: Sonar recorre todo el árbol
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        pip install --quiet --user pre-commit==4.7.0 &&
+        /cache/.local/bin/pre-commit run --all-files --show-diff-on-failure
+
+  # Pruebas de los hooks .NET propios (tools/pre-commit-hooks/), solo stdlib.
+  pre-commit-hooks-tests:
+    image: python:3.12
+    profiles: ["seguridad"]
+    user: *user
+    working_dir: /repo
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./:/repo:ro
+    command: ["python", "tools/pre-commit-hooks/tests/run_tests.py"]
+
+  gitleaks:
+    image: ghcr.io/gitleaks/gitleaks:v8.30.1
+    profiles: ["seguridad"]
+    user: *user
+    environment: *git-seguro
+    volumes:
+      - ./:/repo:ro
+      - ${SALIDA_DIR:-./salida}/reportes:/reportes
+    command:
+      - git
+      - /repo
+      - --config=/repo/.gitleaks.toml
+      - --redact
+      - --report-format=sarif
+      - --report-path=/reportes/gitleaks.sarif
+
+  semgrep:
+    image: semgrep/semgrep:1.185.0
+    profiles: ["seguridad"]
+    user: *user
+    working_dir: /src
+    environment:
+      <<: *git-seguro
+      HOME: /tmp
+    volumes:
+      - ./:/src:ro
+      - ${SALIDA_DIR:-./salida}/reportes:/reportes
+    command:
+      - semgrep
+      - scan
+      - --config=p/default
+      - --config=p/csharp
+      - --config=p/secrets
+      - --config=.semgrep/
+      - --metrics=off
+      - --sarif
+      - --output=/reportes/semgrep.sarif
+      - --error
+      - .
+
+  # Reporte de demo (con hallazgos) sobre la muestra vulnerable + normalización.
+  semgrep-demo:
+    image: semgrep/semgrep:1.185.0
+    profiles: ["seguridad"]
+    user: *user
+    working_dir: /src
+    environment:
+      <<: *git-seguro
+      HOME: /tmp
+    volumes:
+      - ./:/src:ro
+      - ${SALIDA_DIR:-./salida}/reportes:/reportes
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        semgrep scan --config p/csharp --config p/secrets --metrics=off
+        --sarif --output /reportes/semgrep-muestras.sarif
+        agente-sast-g7/samples/codigo-dotnet/VulnerableController.cs;
+        python3 agente-sast-g7/scripts/normalizar_sarif.py
+        /reportes/semgrep-muestras.sarif -o /reportes/muestras-normalizado.json
+
+  # Escanea un proyecto OBJETIVO (por defecto la app vulnerable de muestra; para el
+  # concurso, un proyecto real clonado en objetivos/<proyecto>/). No bloquea: genera el
+  # SARIF y el JSON normalizado que consumen /sast y la metodología.
+  #   OBJETIVO=objetivos/mi-proyecto docker compose --profile seguridad run --rm semgrep-objetivo
+  #   PowerShell: $env:OBJETIVO="objetivos/mi-proyecto"; docker compose --profile seguridad run --rm semgrep-objetivo
+  # Solo se monta la carpeta objetivo: así no aplican el .semgrepignore ni el .gitignore
+  # de este repo (que excluyen objetivos/ y samples/ de los gates).
+  semgrep-objetivo:
+    image: semgrep/semgrep:1.185.0
+    profiles: ["seguridad"]
+    user: *user
+    working_dir: /objetivo
+    environment:
+      HOME: /tmp
+      OBJETIVO: ${OBJETIVO:-agente-sast-g7/samples/app-vulnerable}
+    volumes:
+      - ./${OBJETIVO:-agente-sast-g7/samples/app-vulnerable}:/objetivo:ro
+      - ./agente-sast-g7/scripts:/scripts:ro
+      - ${SALIDA_DIR:-./salida}/reportes:/reportes
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        semgrep scan --config p/default --config p/csharp --config p/secrets
+        --metrics=off --no-git-ignore --sarif --output /reportes/semgrep-objetivo.sarif . &&
+        python3 /scripts/normalizar_sarif.py /reportes/semgrep-objetivo.sarif
+        --prefijo "$$OBJETIVO" -o /reportes/objetivo-normalizado.json &&
+        echo ">> $$OBJETIVO: salida/reportes/semgrep-objetivo.sarif y objetivo-normalizado.json"
+
+  # Ejecuta scripts/sonar-analizar.sh (SonarQube efímero + SDK .NET en contenedores).
+  # Lanza contenedores hermanos por el socket de Docker. Funciona igual en Linux y en
+  # Docker Desktop (Windows/macOS) porque no depende de rutas ni red del host:
+  #   - el SDK hereda el montaje del repo con --volumes-from (misma ruta /repo);
+  #   - este contenedor se une a la red del SonarQube efímero (sin network_mode: host).
+  # DOCKER_GID (grupo dueño de /var/run/docker.sock) lo calculan scripts/validar-local.sh
+  # y .ps1; a mano: export DOCKER_GID=$(stat -c %g /var/run/docker.sock)
+  # SONAR_RUN_USER: en Docker Desktop el socket solo lo usa root (lo fija validar-local.ps1).
+  sonarqube:
+    build:
+      context: ./tools/sonar
+    profiles: ["seguridad"]
+    user: "${SONAR_RUN_USER:-${UID:-1000}:${GID:-1000}}"
+    group_add:
+      - "${DOCKER_GID:-0}"
+    working_dir: /repo
+    environment:
+      HOME: /tmp
+      SONAR_PORT: ${SONAR_PORT:-9100}   # puerto publicado en el host (9000 suele estar ocupado)
+      <<: *git-seguro
+      REPORTES_DIR: salida/reportes
+    volumes:
+      - ./:/repo
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: ["bash"]
+    command: ["scripts/sonar-analizar.sh"]
+
+  # ---------------------------------------------------------------- agentes
+  # Python para los scripts de agente-sast-g7/ (normalizar SARIF, crear incidencias).
+  #   docker compose --profile agentes run --rm py agente-sast-g7/scripts/normalizar_sarif.py ...
+  # Las variables ADO_* se toman del entorno o de agente-sast-g7/.env (nunca del repo).
+  py:
+    image: python:3.12
+    profiles: ["agentes"]
+    user: *user
+    working_dir: /repo
+    environment:
+      HOME: /tmp
+      PYTHONDONTWRITEBYTECODE: "1"
+      ADO_ORG_URL:
+      ADO_PROJECT:
+      ADO_PAT:
+      ADO_WORKITEM_TYPE:
+    volumes:
+      - ./:/repo
+    entrypoint: ["python3"]
+
+  # ---------------------------------------------------------------- Azure DevOps
+  # Azure CLI en contenedor para replicar el repo en otro Azure DevOps sin instalar az.
+  # Úsalo con scripts/ado.sh, que prepara ~/.azure y los permisos:
+  #   ./scripts/ado.sh az login --use-device-code
+  #   ./scripts/ado.sh ./scripts/ado-bootstrap.sh --org https://dev.azure.com/ORG --project PROY --dry-run
+  ado:
+    build:
+      context: ./tools/ado
+      args:
+        AZURE_CLI_VERSION: ${AZURE_CLI_VERSION:-2.91.0}
+    profiles: ["ado"]
+    user: *user
+    working_dir: /repo
+    environment:
+      HOME: /tmp
+      AZURE_CONFIG_DIR: /azure
+      AZURE_DEVOPS_EXT_PAT:     # opcional: PAT desde el entorno del host, nunca de un archivo
+      # El repo se monta en /repo: el nombre real lo pasa scripts/ado.sh (si no, sería "repo").
+      ADO_REPO:
+      ADO_ORG_URL:
+      ADO_PROJECT:
+      ADO_PIPELINE:
+      GIT_CONFIG_COUNT: "1"
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: /repo
+    volumes:
+      - ./:/repo
+      - ${AZURE_CONFIG_HOST:-${HOME}/.azure}:/azure
+    entrypoint: []
+    command: ["bash"]

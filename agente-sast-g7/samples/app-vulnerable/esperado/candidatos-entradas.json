@@ -1,0 +1,158 @@
+{
+  "paso": "entradas",
+  "ruta": "agente-sast-g7/samples/app-vulnerable",
+  "generado_por": "agente-sast-g7/scripts/metodologia.py (heurístico, sin razonamiento)",
+  "total": 15,
+  "candidatos": [
+    {
+      "id": "E-001",
+      "archivo": "Controllers/AuthController.cs",
+      "linea": 16,
+      "metodo": "Login",
+      "parametro": "dto",
+      "tipo_dato": "LoginDto",
+      "fuente": "cuerpo",
+      "codigo": "public IActionResult Login([FromBody] LoginDto dto)"
+    },
+    {
+      "id": "E-002",
+      "archivo": "Controllers/AuthController.cs",
+      "linea": 32,
+      "metodo": "Salir",
+      "parametro": "volverA",
+      "tipo_dato": "string",
+      "fuente": "query",
+      "codigo": "public IActionResult Salir([FromQuery] string volverA)"
+    },
+    {
+      "id": "E-003",
+      "archivo": "Controllers/CuentasController.cs",
+      "linea": 17,
+      "metodo": "Obtener",
+      "parametro": "id",
+      "tipo_dato": "int",
+      "fuente": "ruta",
+      "codigo": "public IActionResult Obtener([FromRoute] int id)"
+    },
+    {
+      "id": "E-004",
+      "archivo": "Controllers/CuentasController.cs",
+      "linea": 25,
+      "metodo": "Buscar",
+      "parametro": "titular",
+      "tipo_dato": "string",
+      "fuente": "query",
+      "codigo": "public IActionResult Buscar([FromQuery] string titular)"
+    },
+    {
+      "id": "E-005",
+      "archivo": "Controllers/CuentasController.cs",
+      "linea": 34,
+      "metodo": "Mias",
+      "parametro": "cliente_id",
+      "tipo_dato": "string",
+      "fuente": "cookie",
+      "codigo": "var clienteId = Request.Cookies[\"cliente_id\"];"
+    },
+    {
+      "id": "E-006",
+      "archivo": "Controllers/DocumentosController.cs",
+      "linea": 18,
+      "metodo": "Subir",
+      "parametro": "archivo",
+      "tipo_dato": "IFormFile",
+      "fuente": "archivo",
+      "codigo": "public async Task<IActionResult> Subir([FromForm] IFormFile archivo)"
+    },
+    {
+      "id": "E-007",
+      "archivo": "Controllers/DocumentosController.cs",
+      "linea": 22,
+      "metodo": "Subir",
+      "parametro": "archivo.FileName",
+      "tipo_dato": "string",
+      "fuente": "archivo",
+      "codigo": "var ruta = _servicio.Guardar(archivo.FileName, ms.ToArray());"
+    },
+    {
+      "id": "E-008",
+      "archivo": "Controllers/DocumentosController.cs",
+      "linea": 27,
+      "metodo": "Descargar",
+      "parametro": "nombre",
+      "tipo_dato": "string",
+      "fuente": "query",
+      "codigo": "public IActionResult Descargar([FromQuery] string nombre)"
+    },
+    {
+      "id": "E-009",
+      "archivo": "Controllers/DocumentosController.cs",
+      "linea": 33,
+      "metodo": "Importar",
+      "parametro": "archivo",
+      "tipo_dato": "IFormFile",
+      "fuente": "archivo",
+      "codigo": "public IActionResult Importar([FromForm] IFormFile archivo)"
+    },
+    {
+      "id": "E-010",
+      "archivo": "Controllers/ReportesController.cs",
+      "linea": 19,
+      "metodo": "Exportar",
+      "parametro": "formato",
+      "tipo_dato": "string",
+      "fuente": "query",
+      "codigo": "public IActionResult Exportar([FromQuery] string formato)"
+    },
+    {
+      "id": "E-011",
+      "archivo": "Controllers/ReportesController.cs",
+      "linea": 25,
+      "metodo": "Notificar",
+      "parametro": "dto",
+      "tipo_dato": "NotificacionDto",
+      "fuente": "cuerpo",
+      "codigo": "public async Task<IActionResult> Notificar([FromBody] NotificacionDto dto)"
+    },
+    {
+      "id": "E-012",
+      "archivo": "Controllers/ReportesController.cs",
+      "linea": 34,
+      "metodo": "Movimientos",
+      "parametro": "orden",
+      "tipo_dato": "string",
+      "fuente": "query",
+      "codigo": "public IActionResult Movimientos([FromQuery] string orden)"
+    },
+    {
+      "id": "E-013",
+      "archivo": "Controllers/TransferenciasController.cs",
+      "linea": 19,
+      "metodo": "Crear",
+      "parametro": "dto",
+      "tipo_dato": "TransferenciaDto",
+      "fuente": "cuerpo",
+      "codigo": "public IActionResult Crear([FromBody] TransferenciaDto dto, [FromHeader(Name = \"X-Cliente-Id\")] string clienteId)"
+    },
+    {
+      "id": "E-014",
+      "archivo": "Controllers/TransferenciasController.cs",
+      "linea": 19,
+      "metodo": "Crear",
+      "parametro": "clienteId",
+      "tipo_dato": "string",
+      "fuente": "cabecera",
+      "codigo": "public IActionResult Crear([FromBody] TransferenciaDto dto, [FromHeader(Name = \"X-Cliente-Id\")] string clienteId)"
+    },
+    {
+      "id": "E-015",
+      "archivo": "Controllers/TransferenciasController.cs",
+      "linea": 27,
+      "metodo": "Historial",
+      "parametro": "cuentaId",
+      "tipo_dato": "int",
+      "fuente": "query",
+      "codigo": "public IActionResult Historial([FromQuery] int cuentaId)"
+    }
+  ]
+}

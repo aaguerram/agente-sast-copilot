@@ -1,0 +1,219 @@
+{
+  "paso": "analizador-gaps",
+  "ruta": "agente-sast-g7/samples/app-vulnerable",
+  "requisitos_fuente": "agente-sast-g7/samples/app-vulnerable/REQUISITOS.md",
+  "gaps": [
+    {
+      "id": "G-01",
+      "requisito": "RN-01",
+      "relacionados": [
+        "HU-01"
+      ],
+      "tipo": "autorizacion",
+      "cwe": "CWE-639",
+      "descripcion": "GET /api/cuentas/{id} devuelve cualquier cuenta: la consulta filtra solo por Id, no por el cliente autenticado.",
+      "evidencia": [
+        {
+          "archivo": "Controllers/CuentasController.cs",
+          "linea": 20
+        },
+        {
+          "archivo": "Repositories/CuentaRepository.cs",
+          "linea": 16
+        }
+      ],
+      "estado": "candidato"
+    },
+    {
+      "id": "G-02",
+      "requisito": "RN-05",
+      "relacionados": [
+        "HU-02"
+      ],
+      "tipo": "autorizacion",
+      "cwe": "CWE-306",
+      "descripcion": "CuentasController no tiene [Authorize]: los tres endpoints de cuentas responden sin sesión.",
+      "evidencia": [
+        {
+          "archivo": "Controllers/CuentasController.cs",
+          "linea": 10
+        }
+      ],
+      "estado": "candidato"
+    },
+    {
+      "id": "G-03",
+      "requisito": "RN-04",
+      "relacionados": [
+        "RN-01"
+      ],
+      "tipo": "identidad",
+      "cwe": "CWE-639",
+      "descripcion": "La identidad sale de la cabecera X-Cliente-Id y de la cookie cliente_id (sin firmar), no del token.",
+      "evidencia": [
+        {
+          "archivo": "Controllers/TransferenciasController.cs",
+          "linea": 19
+        },
+        {
+          "archivo": "Controllers/CuentasController.cs",
+          "linea": 34
+        },
+        {
+          "archivo": "Controllers/AuthController.cs",
+          "linea": 23
+        }
+      ],
+      "estado": "candidato"
+    },
+    {
+      "id": "G-04",
+      "requisito": "RN-02",
+      "relacionados": [],
+      "tipo": "logica-negocio",
+      "cwe": "CWE-840",
+      "descripcion": "Transferencias de más de 10 000 se ejecutan sin aprobación: Constantes.UmbralAprobacion no se usa.",
+      "evidencia": [
+        {
+          "archivo": "Services/TransferenciaService.cs",
+          "linea": 24
+        },
+        {
+          "archivo": "Models/Constantes.cs",
+          "linea": 7
+        }
+      ],
+      "estado": "candidato"
+    },
+    {
+      "id": "G-05",
+      "requisito": "RN-03",
+      "relacionados": [],
+      "tipo": "logica-negocio",
+      "cwe": "CWE-840",
+      "descripcion": "No se controla el límite diario de 20 000: Constantes.LimiteDiario no se usa.",
+      "evidencia": [
+        {
+          "archivo": "Services/TransferenciaService.cs",
+          "linea": 24
+        },
+        {
+          "archivo": "Models/Constantes.cs",
+          "linea": 8
+        }
+      ],
+      "estado": "candidato"
+    },
+    {
+      "id": "G-06",
+      "requisito": "HU-03",
+      "relacionados": [
+        "RN-01"
+      ],
+      "tipo": "validacion",
+      "cwe": "CWE-20",
+      "descripcion": "No se valida monto > 0 ni que la cuenta origen sea del cliente: un monto negativo invierte la transferencia.",
+      "evidencia": [
+        {
+          "archivo": "Models/Dtos.cs",
+          "linea": 6
+        },
+        {
+          "archivo": "Services/TransferenciaService.cs",
+          "linea": 24
+        }
+      ],
+      "estado": "candidato"
+    },
+    {
+      "id": "G-07",
+      "requisito": "HU-04",
+      "relacionados": [],
+      "tipo": "validacion",
+      "cwe": "CWE-434",
+      "descripcion": "La subida no limita tipo (PDF/imagen) ni tamaño (5 MB) y guarda con el nombre del cliente, no uno generado.",
+      "evidencia": [
+        {
+          "archivo": "Controllers/DocumentosController.cs",
+          "linea": 18
+        },
+        {
+          "archivo": "Services/DocumentoService.cs",
+          "linea": 13
+        }
+      ],
+      "estado": "candidato"
+    },
+    {
+      "id": "G-08",
+      "requisito": "HU-05",
+      "relacionados": [],
+      "tipo": "validacion",
+      "cwe": "CWE-20",
+      "descripcion": "El formato de exportación no se limita a pdf o csv.",
+      "evidencia": [
+        {
+          "archivo": "Controllers/ReportesController.cs",
+          "linea": 19
+        },
+        {
+          "archivo": "Services/ReporteService.cs",
+          "linea": 27
+        }
+      ],
+      "estado": "candidato"
+    },
+    {
+      "id": "G-09",
+      "requisito": "HU-02",
+      "relacionados": [
+        "RN-05"
+      ],
+      "tipo": "exposicion-datos",
+      "cwe": "CWE-200",
+      "descripcion": "La búsqueda por titular devuelve CuentaDto completo, con Saldo y ClienteId de terceros.",
+      "evidencia": [
+        {
+          "archivo": "Controllers/CuentasController.cs",
+          "linea": 27
+        },
+        {
+          "archivo": "Models/Dtos.cs",
+          "linea": 4
+        }
+      ],
+      "estado": "candidato"
+    },
+    {
+      "id": "G-10",
+      "requisito": "RN-01",
+      "relacionados": [
+        "HU-01"
+      ],
+      "tipo": "autorizacion",
+      "cwe": "CWE-639",
+      "descripcion": "El historial de movimientos no comprueba que la cuenta sea del cliente autenticado.",
+      "evidencia": [
+        {
+          "archivo": "Controllers/TransferenciasController.cs",
+          "linea": 29
+        },
+        {
+          "archivo": "Repositories/TransferenciaRepository.cs",
+          "linea": 26
+        }
+      ],
+      "estado": "candidato"
+    }
+  ],
+  "cumplidos": [
+    {
+      "requisito": "RN-06",
+      "evidencia": "TransferenciaService.cs:22 registra cliente, destino y monto; sin claves."
+    },
+    {
+      "requisito": "RN-05 (parcial)",
+      "evidencia": "Transferencias, Documentos y Reportes tienen [Authorize]; falta Cuentas (G-02)."
+    }
+  ]
+}

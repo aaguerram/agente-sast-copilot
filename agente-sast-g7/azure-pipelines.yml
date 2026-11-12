@@ -1,0 +1,45 @@
+# Pipeline del Grupo 7 · SAST → incidencias en Azure DevOps.
+# El PAT se inyecta como variable SECRETA del pipeline (Library/Variable group),
+# nunca en este YAML. Se referencia como $(ADO_PAT).
+
+trigger:
+  branches:
+    include: [main]
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  - group: sast-g7-secrets   # debe contener ADO_PAT (secreta), ADO_ORG_URL, ADO_PROJECT
+
+steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.11'
+
+  - script: pip install semgrep
+    displayName: 'Instalar Semgrep CE'
+
+  # Fortify es la herramienta oficial; en sandbox generamos SARIF con Semgrep CE.
+  - script: |
+      semgrep --config p/csharp --config p/security-audit \
+        --sarif -o reporte.sarif samples/codigo-dotnet || true
+    displayName: 'SAST (Semgrep CE) → SARIF'
+
+  - script: |
+      mkdir -p reportes
+      python3 scripts/normalizar_sarif.py reporte.sarif -o reportes/normalizado.json
+    displayName: 'Normalizar SARIF'
+
+  # Fases 2-4 (priorización, remediación, validación) las ejecuta el agente en VS Code,
+  # o un paso de orquestación que invoque los agentes. Aquí se asume reportes/validado.json.
+
+  - script: |
+      python3 scripts/crear_incidencias_ado.py reportes/validado.json
+    displayName: 'Crear incidencias en Azure DevOps'
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    env:
+      ADO_PAT: $(ADO_PAT)
+      ADO_ORG_URL: $(ADO_ORG_URL)
+      ADO_PROJECT: $(ADO_PROJECT)
+      ADO_WORKITEM_TYPE: Bug

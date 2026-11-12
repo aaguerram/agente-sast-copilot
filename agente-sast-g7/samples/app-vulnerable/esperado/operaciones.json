@@ -1,0 +1,171 @@
+{
+  "paso": "mapeo-operaciones",
+  "ruta": "agente-sast-g7/samples/app-vulnerable",
+  "operaciones": [
+    {
+      "id": "O-001",
+      "archivo": "Controllers/AuthController.cs",
+      "linea": 19,
+      "categoria": "log-sensible",
+      "cwe": "CWE-532",
+      "codigo": "_logger.LogInformation(\"Intento de login usuario={Usuario} clave={Clave}\", dto.Usuario, dto.Clave);",
+      "metodo": "Login",
+      "argumento_variable": "si",
+      "nota": ""
+    },
+    {
+      "id": "O-002",
+      "archivo": "Controllers/AuthController.cs",
+      "linea": 25,
+      "categoria": "redireccion",
+      "cwe": "CWE-601",
+      "codigo": "return Redirect(dto.ReturnUrl ?? \"/\");",
+      "metodo": "Login",
+      "argumento_variable": "si",
+      "nota": ""
+    },
+    {
+      "id": "O-003",
+      "archivo": "Controllers/AuthController.cs",
+      "linea": 35,
+      "categoria": "redireccion",
+      "cwe": "CWE-601",
+      "codigo": "return Redirect(volverA);",
+      "metodo": "Salir",
+      "argumento_variable": "si",
+      "nota": ""
+    },
+    {
+      "id": "O-004",
+      "archivo": "Repositories/CuentaRepository.cs",
+      "linea": 26,
+      "categoria": "sql-dinamico",
+      "cwe": "CWE-89",
+      "codigo": "var sql = \"SELECT Id, ClienteId, Titular, Numero, Saldo FROM Cuentas WHERE Titular LIKE '%\" + titular + \"%'\";",
+      "metodo": "BuscarPorTitular",
+      "argumento_variable": "si",
+      "nota": ""
+    },
+    {
+      "id": "O-005",
+      "archivo": "Repositories/CuentaRepository.cs",
+      "linea": 38,
+      "categoria": "sql-dinamico",
+      "cwe": "CWE-89",
+      "codigo": "using var cmd = new SqlCommand($\"SELECT Id, ClienteId, Titular, Numero, Saldo FROM Cuentas WHERE ClienteId = {clienteId}\", conn);",
+      "metodo": "DeCliente",
+      "argumento_variable": "si",
+      "nota": ""
+    },
+    {
+      "id": "O-006",
+      "archivo": "Repositories/ReporteRepository.cs",
+      "linea": 17,
+      "categoria": "sql-dinamico",
+      "cwe": "CWE-89",
+      "codigo": "var sql = \"SELECT Fecha, Concepto, Monto FROM Movimientos ORDER BY \" + columna;",
+      "metodo": "Movimientos",
+      "argumento_variable": "si",
+      "nota": "ORDER BY no admite parámetros; revisar origen de la columna."
+    },
+    {
+      "id": "O-007",
+      "archivo": "Repositories/TransferenciaRepository.cs",
+      "linea": 16,
+      "categoria": "sql-dinamico",
+      "cwe": "CWE-89",
+      "codigo": "var sql = \"INSERT INTO Transferencias (Origen, Destino, Monto, Concepto) OUTPUT INSERTED.Id VALUES (\"",
+      "metodo": "Registrar",
+      "argumento_variable": "si",
+      "nota": ""
+    },
+    {
+      "id": "O-008",
+      "archivo": "Services/DocumentoService.cs",
+      "linea": 13,
+      "categoria": "ruta-archivo",
+      "cwe": "CWE-22",
+      "codigo": "var ruta = Path.Combine(Carpeta, nombreArchivo);",
+      "metodo": "Guardar",
+      "argumento_variable": "si",
+      "nota": ""
+    },
+    {
+      "id": "O-009",
+      "archivo": "Services/DocumentoService.cs",
+      "linea": 14,
+      "categoria": "ruta-archivo",
+      "cwe": "CWE-22",
+      "codigo": "File.WriteAllBytes(ruta, contenido);",
+      "metodo": "Guardar",
+      "argumento_variable": "si",
+      "nota": "Misma operación que O-008."
+    },
+    {
+      "id": "O-010",
+      "archivo": "Services/DocumentoService.cs",
+      "linea": 20,
+      "categoria": "ruta-archivo",
+      "cwe": "CWE-22",
+      "codigo": "var ruta = Path.Combine(Carpeta, nombre);",
+      "metodo": "Leer",
+      "argumento_variable": "si",
+      "nota": ""
+    },
+    {
+      "id": "O-011",
+      "archivo": "Services/DocumentoService.cs",
+      "linea": 21,
+      "categoria": "ruta-archivo",
+      "cwe": "CWE-22",
+      "codigo": "return File.ReadAllBytes(ruta);",
+      "metodo": "Leer",
+      "argumento_variable": "si",
+      "nota": "Misma operación que O-010."
+    },
+    {
+      "id": "O-012",
+      "archivo": "Services/DocumentoService.cs",
+      "linea": 29,
+      "categoria": "deserializacion",
+      "cwe": "CWE-502",
+      "codigo": "return JsonConvert.DeserializeObject(lector.ReadToEnd(), ajustes);",
+      "metodo": "Importar",
+      "argumento_variable": "si",
+      "nota": "Configuración insegura en la variable ajustes (línea 28: TypeNameHandling.All)."
+    },
+    {
+      "id": "O-013",
+      "archivo": "Services/ReporteService.cs",
+      "linea": 27,
+      "categoria": "comando-sistema",
+      "cwe": "CWE-78",
+      "codigo": "var proceso = Process.Start(\"/bin/sh\", \"-c \\\"/opt/banco/exportar --formato \" + formato + \"\\\"\");",
+      "metodo": "Exportar",
+      "argumento_variable": "si",
+      "nota": ""
+    },
+    {
+      "id": "O-014",
+      "archivo": "Services/ReporteService.cs",
+      "linea": 36,
+      "categoria": "peticion-saliente",
+      "cwe": "CWE-918",
+      "codigo": "await cliente.PostAsync(webhookUrl, new StringContent(mensaje));",
+      "metodo": "Notificar",
+      "argumento_variable": "si",
+      "nota": ""
+    },
+    {
+      "id": "O-015",
+      "archivo": "Controllers/AuthController.cs",
+      "linea": 23,
+      "categoria": "otra",
+      "cwe": "CWE-1004",
+      "codigo": "Response.Cookies.Append(\"cliente_id\", \"1001\");",
+      "metodo": "Login",
+      "argumento_variable": "no",
+      "nota": "Añadida por el agente: cookie de identidad sin HttpOnly, Secure ni firma."
+    }
+  ]
+}

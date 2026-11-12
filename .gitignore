@@ -1,0 +1,53 @@
+salida/
+
+# Proyectos objetivo del concurso (código real con vulnerabilidades): se clonan aquí para
+# que Copilot los vea en el workspace, pero NUNCA se versionan ni entran a los gates.
+objetivos/*
+!objetivos/README.md
+site/
+structurizr/.structurizr/
+structurizr/workspace.json
+__pycache__/
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# Python
+*.py[cod]
+.venv/
+venv/
+
+# Editores / IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Playwright MCP
+.playwright-mcp/
+
+# .NET
+bin/
+obj/
+.vs/
+*.user
+
+# Reportes de análisis (pre-commit, Semgrep, SonarQube)
+reportes/
+*.sarif
+.sonarqube/
+.scannerwork/
+
+# Bases oficiales del hackathon: documento interno, NO se versiona.
+# Se copian a mano para consulta local (ver docs/pipeline.md).
+docs/datos/agenton-bases-oficiales-2026.docx
+docs/hackapro-bases.md
+
+# Memoria generada por memanto (notas locales de sesión)
+MEMORY.md

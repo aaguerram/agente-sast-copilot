@@ -1,0 +1,164 @@
+{
+  "paso": "ranking-archivos",
+  "ruta": "agente-sast-g7/samples/app-vulnerable",
+  "archivos": [
+    {
+      "posicion": 1,
+      "archivo": "Controllers/CuentasController.cs",
+      "nivel": "Alto",
+      "puntaje": 12,
+      "senales": [
+        "autenticacion",
+        "endpoints:3",
+        "controlador-sin-authorize"
+      ],
+      "motivo": "Sin [Authorize], devuelve cuentas por id y lee la identidad de una cookie."
+    },
+    {
+      "posicion": 2,
+      "archivo": "Controllers/AuthController.cs",
+      "nivel": "Alto",
+      "puntaje": 10,
+      "senales": [
+        "autenticacion",
+        "endpoints:2",
+        "controlador-sin-authorize"
+      ],
+      "motivo": "Login: registra la clave, emite cookie de identidad y redirige a URLs del cliente."
+    },
+    {
+      "posicion": 3,
+      "archivo": "Controllers/DocumentosController.cs",
+      "nivel": "Alto",
+      "puntaje": 9,
+      "senales": [
+        "archivos",
+        "endpoints:3"
+      ],
+      "motivo": "Recibe archivos y nombres de archivo del cliente."
+    },
+    {
+      "posicion": 4,
+      "archivo": "Services/ReporteService.cs",
+      "nivel": "Alto",
+      "puntaje": 9,
+      "senales": [
+        "comando-sistema",
+        "red-saliente",
+        "dinero"
+      ],
+      "motivo": "Lanza procesos del sistema y peticiones a URLs recibidas."
+    },
+    {
+      "posicion": 5,
+      "archivo": "Services/DocumentoService.cs",
+      "nivel": "Alto",
+      "puntaje": 7,
+      "senales": [
+        "archivos",
+        "deserializacion"
+      ],
+      "motivo": "Escribe y lee rutas de disco y deserializa JSON con tipos."
+    },
+    {
+      "posicion": 6,
+      "archivo": "Controllers/ReportesController.cs",
+      "nivel": "Alto",
+      "puntaje": 6,
+      "senales": [
+        "endpoints:3"
+      ],
+      "motivo": "Sube de Medio: es la puerta de entrada a Process.Start y a peticiones salientes."
+    },
+    {
+      "posicion": 7,
+      "archivo": "Controllers/TransferenciasController.cs",
+      "nivel": "Alto",
+      "puntaje": 6,
+      "senales": [
+        "dinero",
+        "endpoints:2"
+      ],
+      "motivo": "Sube de Medio: mueve dinero y toma el cliente de una cabecera."
+    },
+    {
+      "posicion": 8,
+      "archivo": "Services/TransferenciaService.cs",
+      "nivel": "Alto",
+      "puntaje": 2,
+      "senales": [
+        "dinero"
+      ],
+      "motivo": "Sube de Bajo: es donde deben aplicarse RN-02 y RN-03 (aprobación y límite diario); el regex no lo ve."
+    },
+    {
+      "posicion": 9,
+      "archivo": "Repositories/CuentaRepository.cs",
+      "nivel": "Medio",
+      "puntaje": 5,
+      "senales": [
+        "sql",
+        "dinero"
+      ],
+      "motivo": "SQL concatenado; el riesgo depende de quién le pasa los datos (paso 4)."
+    },
+    {
+      "posicion": 10,
+      "archivo": "Repositories/ReporteRepository.cs",
+      "nivel": "Medio",
+      "puntaje": 5,
+      "senales": [
+        "sql",
+        "dinero"
+      ],
+      "motivo": "ORDER BY concatenado; revisar si la columna llega validada."
+    },
+    {
+      "posicion": 11,
+      "archivo": "Repositories/TransferenciaRepository.cs",
+      "nivel": "Medio",
+      "puntaje": 5,
+      "senales": [
+        "sql",
+        "dinero"
+      ],
+      "motivo": "SQL concatenado en el INSERT de transferencias."
+    },
+    {
+      "posicion": 12,
+      "archivo": "Services/CuentaService.cs",
+      "nivel": "Medio",
+      "puntaje": 0,
+      "senales": [],
+      "motivo": "Sube de Bajo: intermediario de los flujos de cuentas; solo hace Trim()."
+    },
+    {
+      "posicion": 13,
+      "archivo": "Models/Dtos.cs",
+      "nivel": "Bajo",
+      "puntaje": 2,
+      "senales": [
+        "dinero"
+      ],
+      "motivo": "Solo records; CuentaDto incluye Saldo (relevante para HU-02, paso 5)."
+    },
+    {
+      "posicion": 14,
+      "archivo": "Program.cs",
+      "nivel": "Bajo",
+      "puntaje": 2,
+      "senales": [
+        "dinero"
+      ],
+      "motivo": "Registro de dependencias; sin lógica de negocio."
+    },
+    {
+      "posicion": 15,
+      "archivo": "Models/Constantes.cs",
+      "nivel": "Bajo",
+      "puntaje": 0,
+      "senales": [],
+      "motivo": "Constantes; UmbralAprobacion y LimiteDiario no se usan (evidencia para el paso 5)."
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "descripcion": "Respuesta correcta de la muestra app-vulnerable. La usan las pruebas de metodologia.py y sirve para evaluar a los agentes.",
+  "ranking": {
+    "alto": ["Controllers/CuentasController.cs", "Controllers/AuthController.cs", "Controllers/DocumentosController.cs",
+             "Services/ReporteService.cs", "Services/DocumentoService.cs"],
+    "bajo": ["Models/Dtos.cs", "Models/Constantes.cs"]
+  },
+  "entradas": [
+    {"archivo": "Controllers/AuthController.cs", "parametro": "dto", "fuente": "cuerpo"},
+    {"archivo": "Controllers/AuthController.cs", "parametro": "volverA", "fuente": "query"},
+    {"archivo": "Controllers/CuentasController.cs", "parametro": "id", "fuente": "ruta"},
+    {"archivo": "Controllers/CuentasController.cs", "parametro": "titular", "fuente": "query"},
+    {"archivo": "Controllers/CuentasController.cs", "parametro": "cliente_id", "fuente": "cookie"},
+    {"archivo": "Controllers/TransferenciasController.cs", "parametro": "dto", "fuente": "cuerpo"},
+    {"archivo": "Controllers/TransferenciasController.cs", "parametro": "clienteId", "fuente": "cabecera"},
+    {"archivo": "Controllers/DocumentosController.cs", "parametro": "archivo", "fuente": "archivo"},
+    {"archivo": "Controllers/DocumentosController.cs", "parametro": "nombre", "fuente": "query"},
+    {"archivo": "Controllers/ReportesController.cs", "parametro": "formato", "fuente": "query"},
+    {"archivo": "Controllers/ReportesController.cs", "parametro": "dto", "fuente": "cuerpo"},
+    {"archivo": "Controllers/ReportesController.cs", "parametro": "orden", "fuente": "query"}
+  ],
+  "operaciones": [
+    {"archivo": "Repositories/CuentaRepository.cs", "categoria": "sql-dinamico"},
+    {"archivo": "Repositories/TransferenciaRepository.cs", "categoria": "sql-dinamico"},
+    {"archivo": "Repositories/ReporteRepository.cs", "categoria": "sql-dinamico"},
+    {"archivo": "Services/DocumentoService.cs", "categoria": "ruta-archivo"},
+    {"archivo": "Services/DocumentoService.cs", "categoria": "deserializacion"},
+    {"archivo": "Services/ReporteService.cs", "categoria": "comando-sistema"},
+    {"archivo": "Services/ReporteService.cs", "categoria": "peticion-saliente"},
+    {"archivo": "Controllers/AuthController.cs", "categoria": "redireccion"},
+    {"archivo": "Controllers/AuthController.cs", "categoria": "log-sensible"}
+  ],
+  "flujos_vulnerables": ["F-01", "F-02", "F-03", "F-04", "F-05", "F-06", "F-07", "F-08", "F-09", "F-10"],
+  "flujos_saneados": ["F-11"],
+  "gaps": ["RN-01", "RN-02", "RN-03", "RN-04", "RN-05", "HU-02", "HU-03", "HU-04", "HU-05"]
+}

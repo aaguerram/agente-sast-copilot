@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visor JSON</title>
+<!--
+  Visor de archivos .json sin servidor.
+  Uso desde un .md (ruta del archivo relativa a docs/):
+    [Ver resumen](../visor/json.html?f=datos/resumen.json){ target=_blank }
+  Parámetros: f = archivo (obligatorio).
+  Si el archivo es un resumen de k6 (tiene "metrics" con "values"), muestra solo la
+  tabla de métricas, sin el JSON en crudo; si no, muestra el árbol.
+-->
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --muted: #656d76; --line: #d0d7de;
+    --head: #f6f8fa; --accent: #4051b5; --hover: #eef1fb;
+    --cadena: #0a6e31; --numero: #0550ae; --literal: #8250df;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1e2129; --fg: #e6e6e6; --muted: #9aa0a6; --line: #3a3f4b;
+      --head: #262a33; --accent: #8c9eff; --hover: #2c3242;
+      --cadena: #7ee2a8; --numero: #79c0ff; --literal: #d2a8ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding: 10px 16px; border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 16px; margin: 0; overflow-wrap: anywhere; }
+  header .acciones { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  input[type=search] {
+    padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--bg); color: var(--fg); min-width: 0; width: 200px;
+  }
+  a.boton, button.boton {
+    padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px;
+    color: var(--fg); background: none; font: inherit; cursor: pointer;
+    text-decoration: none; white-space: nowrap;
+  }
+  a.boton:hover, button.boton:hover { background: var(--hover); }
+  main { flex: 1; overflow: auto; }
+  table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  td, th { border: 1px solid var(--line); padding: 4px 8px; white-space: nowrap; }
+  thead th {
+    position: sticky; top: 0; background: var(--head); color: var(--muted);
+    font-weight: 500; z-index: 1; text-align: left;
+  }
+  td.num { text-align: right; }
+  td.nombre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+  td.ok { color: var(--cadena); }
+  td.falla { color: #cf222e; font-weight: 600; }
+  td.umbrales { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; white-space: pre; }
+  /* Datos de la corrida que no son métricas: state, options y root_group */
+  .resumen {
+    display: flex; flex-wrap: wrap; gap: 12px 32px; align-items: flex-start;
+    padding: 12px 16px; border-bottom: 1px solid var(--line);
+  }
+  .resumen h2 { font-size: 13px; margin: 0 0 6px; color: var(--muted); font-weight: 600; }
+  .resumen dl { display: grid; grid-template-columns: auto auto; gap: 2px 12px; margin: 0; }
+  .resumen dt { color: var(--muted); }
+  .resumen dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .resumen table td, .resumen table th { padding: 3px 8px; }
+  .resumen thead th { position: static; }
+  tbody tr:hover td { background: var(--hover); }
+  .oculta { display: none !important; }
+  /* Árbol */
+  .arbol {
+    padding: 12px 16px; font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .arbol details { margin-left: 16px; }
+  .arbol > details { margin-left: 0; }
+  .arbol summary { cursor: pointer; list-style: none; }
+  .arbol summary::-webkit-details-marker { display: none; }
+  .arbol summary::before { content: "▸ "; color: var(--muted); }
+  .arbol details[open] > summary::before { content: "▾ "; }
+  .arbol .hoja { margin-left: 32px; }
+  .arbol .clave { color: var(--fg); font-weight: 600; }
+  .arbol .resumen { color: var(--muted); }
+  .arbol .cadena { color: var(--cadena); }
+  .arbol .numero { color: var(--numero); }
+  .arbol .literal { color: var(--literal); }
+  .mensaje { padding: 24px 16px; color: var(--muted); }
+  .error { color: #cf222e; }
+  @media (max-width: 600px) {
+    header .acciones { margin-left: 0; width: 100%; }
+    input[type=search] { flex: 1; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titulo">Visor JSON</h1>
+  <div class="acciones">
+    <input id="buscar" type="search" placeholder="Filtrar…" aria-label="Filtrar">
+    <button id="expandir" class="boton" type="button" hidden>Expandir todo</button>
+    <a id="descargar" class="boton" hidden download>Descargar</a>
+  </div>
+</header>
+<main id="contenido"><p class="mensaje">Cargando…</p></main>
+
+<script>
+(function () {
+  const params = new URLSearchParams(location.search);
+  const archivo = params.get("f");
+  const contenido = document.getElementById("contenido");
+  const buscar = document.getElementById("buscar");
+  const expandir = document.getElementById("expandir");
+  let datos = null;
+  let vistaActual = null;
+
+  function mensaje(texto, esError) {
+    contenido.innerHTML = "";
+    const p = document.createElement("p");
+    p.className = "mensaje" + (esError ? " error" : "");
+    p.textContent = texto;
+    contenido.appendChild(p);
+  }
+
+  if (!archivo) {
+    mensaje("Falta el parámetro ?f= con la ruta del archivo (relativa a docs/).", true);
+    return;
+  }
+
+  // La ruta se resuelve contra la raíz del sitio (carpeta padre de visor/)
+  // y solo se aceptan archivos del mismo origen.
+  const raiz = new URL("../", location.href);
+  const url = new URL(archivo, raiz);
+  if (url.origin !== location.origin) {
+    mensaje("Solo se pueden abrir archivos del propio sitio.", true);
+    return;
+  }
+
+  const nombre = decodeURIComponent(url.pathname.split("/").pop());
+  document.title = nombre + " · Visor JSON";
+  document.getElementById("titulo").textContent = nombre;
+  const descargar = document.getElementById("descargar");
+  descargar.href = url.href;
+  descargar.hidden = false;
+
+  fetch(url)
+    .then(r => {
+      if (!r.ok) throw new Error("No se encontró " + archivo + " (HTTP " + r.status + ")");
+      return r.json();
+    })
+    .then(json => {
+      datos = json;
+      mostrar(esResumenK6(json) ? "metricas" : "arbol");
+    })
+    .catch(e => mensaje(e.message, true));
+
+  function esResumenK6(j) {
+    return j && typeof j.metrics === "object" &&
+      Object.values(j.metrics).some(m => m && typeof m.values === "object");
+  }
+
+  function mostrar(vista) {
+    vistaActual = vista;
+    expandir.hidden = vista !== "arbol";
+    contenido.innerHTML = "";
+    if (vista === "metricas") {
+      contenido.appendChild(resumenCorrida(datos));
+      contenido.appendChild(tablaMetricas(datos.metrics));
+    } else {
+      contenido.appendChild(arbol(datos));
+    }
+    filtrar();
+  }
+
+  // Métricas de k6: una fila por métrica y una columna por cada estadística
+  // (avg, p(95), count, rate…), en el orden en que aparecen.
+  function tablaMetricas(metricas) {
+    const nombres = Object.keys(metricas).sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
+    const columnas = [];
+    nombres.forEach(n => Object.keys(metricas[n].values || {}).forEach(c => {
+      if (!columnas.includes(c)) columnas.push(c);
+    }));
+    // TPS del minuto: k6 calcula el rate de un contador dividiendo entre la duración
+    // total de la prueba, también en las submétricas por minuto. El ritmo real de
+    // ese minuto es su count entre 60 segundos.
+    const hayMinutos = nombres.some(esPorMinuto);
+    if (hayMinutos) columnas.splice(columnas.includes("count") ? columnas.indexOf("count") + 1 : columnas.length, 0, "tps_minuto");
+    const tabla = document.createElement("table");
+    tabla.className = "metricas";
+    const thead = tabla.createTHead().insertRow();
+    // En las métricas "rate", k6 llama passes a los valores verdaderos y fails a los
+    // falsos: en checks, passes son los checks que pasaron; en http_req_failed, las
+    // peticiones que fallaron. Se renombran para no leer "fails" como errores.
+    const encabezados = {
+      passes: ["Sí (passes)", "Valores verdaderos. En http_req_failed son las peticiones que fallaron."],
+      fails: ["No (fails)", "Valores falsos. En http_req_failed son las peticiones correctas."],
+      tps_minuto: ["TPS del minuto", "count / 60 s. Solo en las métricas {minuto:N}: su rate se divide entre toda la prueba."],
+    };
+    ["Métrica", "Tipo", ...columnas, "Umbrales"].forEach(t => {
+      const th = document.createElement("th");
+      const [texto, ayuda] = encabezados[t] || [t];
+      th.textContent = texto;
+      if (ayuda) th.title = ayuda;
+      thead.appendChild(th);
+    });
+    const tbody = tabla.createTBody();
+    nombres.forEach(n => {
+      const m = metricas[n];
+      const fila = tbody.insertRow();
+      const celdaNombre = fila.insertCell();
+      celdaNombre.className = "nombre";
+      celdaNombre.textContent = n;
+      fila.insertCell().textContent = m.type || "";
+      columnas.forEach(c => {
+        const td = fila.insertCell();
+        td.className = "num";
+        if (c === "tps_minuto") {
+          if (esPorMinuto(n)) td.textContent = numero(m.values.count / 60, 2) + "/s";
+          return;
+        }
+        const v = (m.values || {})[c];
+        td.textContent = v === undefined ? "" : formatear(v, m, c);
+      });
+      const umbrales = Object.entries(m.thresholds || {});
+      const td = fila.insertCell();
+      if (umbrales.length) {
+        const fallan = umbrales.some(([, u]) => !u.ok);
+        td.textContent = umbrales.map(([k, u]) => (u.ok ? "✓ " : "✗ ") + k).join("\n");
+        td.className = "umbrales " + (fallan ? "falla" : "ok");
+      }
+    });
+    return tabla;
+  }
+
+  function esPorMinuto(nombre) {
+    return /^http_reqs\{minuto:\d+\}$/.test(nombre);
+  }
+
+  // Lo que el resumen trae fuera de "metrics": duración (state), estadísticas
+  // configuradas (options) y los checks de cada grupo (root_group).
+  function resumenCorrida(j) {
+    const caja = document.createElement("section");
+    caja.className = "resumen";
+
+    const corrida = [];
+    const ms = j.state && j.state.testRunDurationMs;
+    if (typeof ms === "number") {
+      const seg = ms / 1000;
+      corrida.push(["Duración", Math.floor(seg / 60) + " min " + numero(seg % 60, 2) + " s"]);
+    }
+    const stats = j.options && j.options.summaryTrendStats;
+    if (Array.isArray(stats)) corrida.push(["Estadísticas", stats.join(", ")]);
+    if (j.options && j.options.summaryTimeUnit) corrida.push(["Unidad de tiempo", j.options.summaryTimeUnit]);
+    corrida.push(["Métricas", numero(Object.keys(j.metrics).length, 0)]);
+    const bloque = document.createElement("div");
+    bloque.innerHTML = "<h2>Corrida</h2>";
+    const dl = document.createElement("dl");
+    corrida.forEach(([k, v]) => {
+      const dt = document.createElement("dt"); dt.textContent = k;
+      const dd = document.createElement("dd"); dd.textContent = v;
+      dl.append(dt, dd);
+    });
+    bloque.appendChild(dl);
+    caja.appendChild(bloque);
+
+    const checks = [];
+    (function recorrer(g) {
+      if (!g) return;
+      (g.checks || []).forEach(c => checks.push([g.name || "(raíz)", c]));
+      (g.groups || []).forEach(recorrer);
+    })(j.root_group);
+    if (checks.length) {
+      const b = document.createElement("div");
+      b.innerHTML = "<h2>Checks</h2>";
+      const t = document.createElement("table");
+      const h = t.createTHead().insertRow();
+      ["Grupo", "Check", "Pasaron", "Fallaron", "Éxito"].forEach(x => {
+        const th = document.createElement("th"); th.textContent = x; h.appendChild(th);
+      });
+      const tb = t.createTBody();
+      checks.forEach(([grupo, c]) => {
+        const f = tb.insertRow();
+        f.insertCell().textContent = grupo;
+        f.insertCell().textContent = c.name;
+        const total = c.passes + c.fails;
+        [numero(c.passes, 0), numero(c.fails, 0), total ? numero(c.passes / total * 100, 2) + " %" : ""].forEach((v, i) => {
+          const td = f.insertCell(); td.textContent = v; td.className = "num";
+          if (i === 1) td.classList.add(c.fails ? "falla" : "ok");
+        });
+      });
+      b.appendChild(t);
+      caja.appendChild(b);
+    }
+    return caja;
+  }
+
+  // Unidades como las muestra k6: tiempos en ms, métricas "rate" en %, bytes en
+  // kB/MB y el "rate" de los contadores por segundo. "count" nunca lleva unidad.
+  function formatear(v, metrica, columna) {
+    if (typeof v !== "number") return String(v);
+    if (columna === "count" && metrica.contains !== "data") return numero(v, 0);
+    if (metrica.type === "rate" && columna === "rate") return numero(v * 100, 2) + " %";
+    if (metrica.contains === "data") return bytes(v) + (columna === "rate" ? "/s" : "");
+    if (metrica.type === "counter" && columna === "rate") return numero(v, 2) + "/s";
+    if (metrica.contains === "time") return numero(v, 2) + " ms";
+    return numero(v, 2);
+  }
+
+  // useGrouping "always": en español Intl no agrupa los números de 4 cifras.
+  function numero(v, decimales) {
+    return v.toLocaleString("es", { maximumFractionDigits: decimales, useGrouping: "always" });
+  }
+
+  function bytes(v) {
+    const unidades = ["B", "kB", "MB", "GB"];
+    let i = 0;
+    while (Math.abs(v) >= 1000 && i < unidades.length - 1) { v /= 1000; i++; }
+    return numero(v, i ? 2 : 0) + " " + unidades[i];
+  }
+
+  // Árbol: objetos y listas son <details> plegables; los valores, hojas.
+  function arbol(valor) {
+    const raiz = document.createElement("div");
+    raiz.className = "arbol";
+    raiz.appendChild(nodo(null, valor, true));
+    return raiz;
+  }
+
+  function nodo(clave, valor, abierto) {
+    if (valor !== null && typeof valor === "object") {
+      const lista = Array.isArray(valor);
+      const entradas = lista ? valor.map((v, i) => [i, v]) : Object.entries(valor);
+      const d = document.createElement("details");
+      d.open = abierto;
+      const s = document.createElement("summary");
+      if (clave !== null) s.appendChild(span("clave", clave + ": "));
+      s.appendChild(span("resumen", lista ? "[" + entradas.length + "]" : "{" + entradas.length + "}"));
+      d.appendChild(s);
+      entradas.forEach(([k, v]) => d.appendChild(nodo(k, v, false)));
+      return d;
+    }
+    const div = document.createElement("div");
+    div.className = "hoja";
+    if (clave !== null) div.appendChild(span("clave", clave + ": "));
+    const tipo = typeof valor === "string" ? "cadena" : typeof valor === "number" ? "numero" : "literal";
+    div.appendChild(span(tipo, JSON.stringify(valor)));
+    return div;
+  }
+
+  function span(clase, texto) {
+    const s = document.createElement("span");
+    s.className = clase;
+    s.textContent = texto;
+    return s;
+  }
+
+  function filtrar() {
+    const q = buscar.value.trim().toLowerCase();
+    if (vistaActual === "metricas") {
+      contenido.querySelectorAll("table.metricas tbody tr").forEach(tr =>
+        tr.classList.toggle("oculta", !!q && !tr.cells[0].textContent.toLowerCase().includes(q)));
+      return;
+    }
+    // En el árbol se muestran las hojas que coinciden y se abren sus ancestros.
+    const hojas = contenido.querySelectorAll(".hoja");
+    const ramas = contenido.querySelectorAll(".arbol details");
+    if (!q) {
+      hojas.forEach(h => h.classList.remove("oculta"));
+      ramas.forEach(d => d.classList.remove("oculta"));
+      return;
+    }
+    ramas.forEach(d => d.classList.add("oculta"));
+    hojas.forEach(h => {
+      const coincide = h.textContent.toLowerCase().includes(q);
+      h.classList.toggle("oculta", !coincide);
+      if (coincide) for (let d = h.parentElement.closest("details"); d; d = d.parentElement.closest("details")) {
+        d.classList.remove("oculta");
+        d.open = true;
+      }
+    });
+    ramas.forEach(d => {
+      if (d.querySelector(":scope > summary").textContent.toLowerCase().includes(q))
+        for (let a = d; a; a = a.parentElement.closest("details")) a.classList.remove("oculta");
+    });
+  }
+  buscar.addEventListener("input", filtrar);
+
+  expandir.addEventListener("click", () => {
+    const ramas = contenido.querySelectorAll(".arbol details");
+    const abrir = [...ramas].some(d => !d.open);
+    ramas.forEach(d => { d.open = abrir; });
+    expandir.textContent = abrir ? "Plegar todo" : "Expandir todo";
+  });
+})();
+</script>
+</body>
+</html>

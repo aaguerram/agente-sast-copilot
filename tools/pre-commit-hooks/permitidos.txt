@@ -1,0 +1,4 @@
+# Excepciones aceptadas a los hooks .NET de pre-commit, una por línea:
+#   <id-regla> <ruta o patrón glob desde la raíz del repo> <motivo obligatorio>
+# Úsalo solo para archivos que no admiten comentarios (JSON). En .cs/.csproj prefiere
+#   // pre-commit:allow <id-regla> <motivo>   en la línea afectada o en la anterior.

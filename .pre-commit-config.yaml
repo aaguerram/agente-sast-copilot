@@ -1,0 +1,149 @@
+# Controles rápidos y deterministas. Corren en cada commit (pre-commit install)
+# y se repiten en el pipeline (azure-pipelines.yml), donde no se pueden saltar.
+#   pip install pre-commit==4.7.0 && pre-commit install
+#   pre-commit run --all-files
+
+# Generado o de terceros: no se revisa ni se reformatea.
+exclude: |
+  (?x)^(
+    docs/visor/.*\.(min|umd)\.js|
+    docs/datos/.*|
+    docs/hackapro-bases\.md|
+    rickmorty-clean/src/RickMorty\.Infrastructure/Data/.*\.json|
+    objetivos/(?!README\.md$).*
+  )$
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--unsafe]          # mkdocs.yml usa tags !!python/name y !ENV
+      - id: check-json
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: [--maxkb=500]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  # ------------------------------------------------------------------------------
+  # Buenas prácticas .NET propias (tools/pre-commit-hooks/dotnet_buenas_practicas.py).
+  # Cubren lo que SonarQube Community no ve o no bloquea: ver docs/hooks-dotnet.md.
+  # Pruebas: docker compose --profile seguridad run --rm pre-commit-hooks-tests
+  # Aceptar un hallazgo: "// pre-commit:allow <id> <motivo>" en la línea (o la anterior),
+  # o una entrada en tools/pre-commit-hooks/permitidos.txt.
+  # "avisa" = muestra el hallazgo pero no bloquea (verbose: true).
+  - repo: local
+    hooks:
+      - id: dotnet-url-quemada
+        name: ".NET · URL, host o IP quemados (van en configuración)"
+        entry: python tools/pre-commit-hooks/dotnet_buenas_practicas.py --regla dotnet-url-quemada
+        language: python
+        types: [c#]
+        exclude: &excluir-muestras ^(agente-sast-g7/samples/|tools/pre-commit-hooks/tests/fixtures/)
+      - id: dotnet-credencial-quemada
+        name: ".NET · credenciales o cadenas de conexión con clave en código"
+        entry: python tools/pre-commit-hooks/dotnet_buenas_practicas.py --regla dotnet-credencial-quemada
+        language: python
+        types: [c#]
+        exclude: *excluir-muestras
+      - id: dotnet-secreto-en-config
+        name: ".NET · secretos con valor real en appsettings (no Development)"
+        entry: python tools/pre-commit-hooks/dotnet_buenas_practicas.py --regla dotnet-secreto-en-config
+        language: python
+        files: (^|/)appsettings(\.[\w-]+)?\.json$
+        exclude: &excluir-config ^(agente-sast-g7/samples/|tools/pre-commit-hooks/tests/fixtures/)|(^|/)appsettings\.Development\.json$
+      - id: dotnet-tls-sin-validar
+        name: ".NET · validación TLS deshabilitada o protocolo obsoleto"
+        entry: python tools/pre-commit-hooks/dotnet_buenas_practicas.py --regla dotnet-tls-sin-validar
+        language: python
+        types: [c#]
+        exclude: *excluir-muestras
+      - id: dotnet-cors-inseguro
+        name: ".NET · CORS con cualquier origen y credenciales"
+        entry: python tools/pre-commit-hooks/dotnet_buenas_practicas.py --regla dotnet-cors-inseguro
+        language: python
+        types: [c#]
+        exclude: *excluir-muestras
+      - id: dotnet-developer-exception-page
+        name: ".NET · UseDeveloperExceptionPage sin chequeo de entorno"
+        entry: python tools/pre-commit-hooks/dotnet_buenas_practicas.py --regla dotnet-developer-exception-page
+        language: python
+        types: [c#]
+        exclude: *excluir-muestras
+      - id: dotnet-deserializacion-insegura
+        name: ".NET · deserialización insegura (BinaryFormatter, TypeNameHandling)"
+        entry: python tools/pre-commit-hooks/dotnet_buenas_practicas.py --regla dotnet-deserializacion-insegura
+        language: python
+        types: [c#]
+        exclude: *excluir-muestras
+      - id: dotnet-hash-debil
+        name: ".NET · MD5 / SHA-1"
+        entry: python tools/pre-commit-hooks/dotnet_buenas_practicas.py --regla dotnet-hash-debil
+        language: python
+        types: [c#]
+        exclude: *excluir-muestras
+      - id: dotnet-random-inseguro
+        name: ".NET · System.Random para tokens, salts u OTP"
+        entry: python tools/pre-commit-hooks/dotnet_buenas_practicas.py --regla dotnet-random-inseguro
+        language: python
+        types: [c#]
+        exclude: *excluir-muestras
+      - id: dotnet-supresion-sin-justificar
+        name: ".NET · #pragma warning disable / SuppressMessage sin motivo"
+        entry: python tools/pre-commit-hooks/dotnet_buenas_practicas.py --regla dotnet-supresion-sin-justificar
+        language: python
+        types: [c#]
+        exclude: *excluir-muestras
+      - id: dotnet-paquete-version-flotante
+        name: ".NET · paquetes NuGet con versión flotante (*)"
+        entry: python tools/pre-commit-hooks/dotnet_buenas_practicas.py --regla dotnet-paquete-version-flotante
+        language: python
+        files: \.(cs|vb|fs)proj$|(^|/)Directory\.(Packages|Build)\.props$
+        exclude: *excluir-muestras
+      - id: dotnet-swagger-sin-entorno
+        name: ".NET · (aviso) Swagger/OpenAPI sin chequeo de entorno"
+        entry: python tools/pre-commit-hooks/dotnet_buenas_practicas.py --regla dotnet-swagger-sin-entorno
+        language: python
+        types: [c#]
+        exclude: *excluir-muestras
+        verbose: true
+      - id: dotnet-allowed-hosts-comodin
+        name: ".NET · (aviso) AllowedHosts \"*\" fuera de Development"
+        entry: python tools/pre-commit-hooks/dotnet_buenas_practicas.py --regla dotnet-allowed-hosts-comodin
+        language: python
+        files: (^|/)appsettings(\.[\w-]+)?\.json$
+        exclude: *excluir-config
+        verbose: true
+      - id: dotnet-catch-vacio
+        name: ".NET · (aviso) catch vacío"
+        entry: python tools/pre-commit-hooks/dotnet_buenas_practicas.py --regla dotnet-catch-vacio
+        language: python
+        types: [c#]
+        exclude: *excluir-muestras
+        verbose: true
+      - id: dotnet-async-bloqueante
+        name: ".NET · (aviso) .Result / .Wait() sobre tareas"
+        entry: python tools/pre-commit-hooks/dotnet_buenas_practicas.py --regla dotnet-async-bloqueante
+        language: python
+        types: [c#]
+        exclude: *excluir-muestras
+        verbose: true
+
+  # Archivos de GitHub Copilot: frontmatter válido y portable entre arneses (Copilot y Local).
+  - repo: local
+    hooks:
+      - id: copilot-frontmatter
+        name: "Copilot · agentes, skills y prompts válidos (.github/)"
+        entry: python tools/copilot/validar_frontmatter.py
+        language: python
+        additional_dependencies: [pyyaml==6.0.3]
+        files: ^(\.github/(agents|skills|prompts)/|tools/copilot/)
+        pass_filenames: false

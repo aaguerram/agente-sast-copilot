@@ -1,0 +1,14 @@
+<!-- Muestra DELIBERADAMENTE vulnerable (datos sintéticos). No forma parte de
+     rickmorty-clean/RickMorty.sln: no la compila el pipeline ni la analiza SonarQube. -->
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BancoFicticio</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.8" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+</Project>

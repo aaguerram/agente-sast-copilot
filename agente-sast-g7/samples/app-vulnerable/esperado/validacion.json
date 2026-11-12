@@ -1,0 +1,302 @@
+{
+  "paso": "devils-advocate",
+  "ruta": "agente-sast-g7/samples/app-vulnerable",
+  "veredictos": [
+    {
+      "id_hallazgo": "F-01",
+      "origen": "flujos",
+      "veredicto": "sobrevive",
+      "motivo": "Trim() (CuentaService.cs:18) no neutraliza comillas; el endpoint no exige sesión (G-02).",
+      "evidencia": [
+        {
+          "archivo": "Repositories/CuentaRepository.cs",
+          "linea": 26
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "F-02",
+      "origen": "flujos",
+      "veredicto": "sobrevive",
+      "motivo": "La cookie la fija el cliente; no hay conversión a int antes de la interpolación (CuentaRepository.cs:38).",
+      "evidencia": [
+        {
+          "archivo": "Repositories/CuentaRepository.cs",
+          "linea": 38
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "F-03",
+      "origen": "flujos",
+      "veredicto": "sobrevive",
+      "motivo": "Concepto y CuentaDestino llegan sin validar desde el cuerpo y se concatenan (TransferenciaRepository.cs:16-17).",
+      "evidencia": [
+        {
+          "archivo": "Repositories/TransferenciaRepository.cs",
+          "linea": 16
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "F-04",
+      "origen": "flujos",
+      "veredicto": "sobrevive",
+      "motivo": "FormFile.FileName conserva el nombre enviado; no hay Path.GetFileName ni comprobación de carpeta.",
+      "evidencia": [
+        {
+          "archivo": "Services/DocumentoService.cs",
+          "linea": 14
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "F-05",
+      "origen": "flujos",
+      "veredicto": "sobrevive",
+      "motivo": "Path.Combine con una ruta absoluta descarta la carpeta base; no hay comprobación.",
+      "evidencia": [
+        {
+          "archivo": "Services/DocumentoService.cs",
+          "linea": 21
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "F-06",
+      "origen": "flujos",
+      "veredicto": "sobrevive",
+      "motivo": "TypeNameHandling.All sobre contenido del cliente es el patrón inseguro documentado por Newtonsoft; no hay SerializationBinder.",
+      "evidencia": [
+        {
+          "archivo": "Services/DocumentoService.cs",
+          "linea": 29
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "F-07",
+      "origen": "flujos",
+      "veredicto": "sobrevive",
+      "motivo": "El formato llega libre y se pega a /bin/sh -c (ReporteService.cs:27).",
+      "evidencia": [
+        {
+          "archivo": "Services/ReporteService.cs",
+          "linea": 27
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "F-08",
+      "origen": "flujos",
+      "veredicto": "sobrevive",
+      "motivo": "No hay lista de destinos ni bloqueo de IPs internas (ReporteService.cs:36).",
+      "evidencia": [
+        {
+          "archivo": "Services/ReporteService.cs",
+          "linea": 36
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "F-09",
+      "origen": "flujos",
+      "veredicto": "sobrevive",
+      "motivo": "Redirect() acepta URLs absolutas; no se usa LocalRedirect ni Url.IsLocalUrl.",
+      "evidencia": [
+        {
+          "archivo": "Controllers/AuthController.cs",
+          "linea": 35
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "F-10",
+      "origen": "flujos",
+      "veredicto": "sobrevive",
+      "motivo": "La plantilla del log incluye {Clave} con dto.Clave (AuthController.cs:19).",
+      "evidencia": [
+        {
+          "archivo": "Controllers/AuthController.cs",
+          "linea": 19
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "F-11",
+      "origen": "flujos",
+      "veredicto": "refutado",
+      "motivo": "Saneamiento efectivo: ReporteService.cs:42 solo deja pasar fecha, monto o concepto; cualquier otro valor se reemplaza por \"fecha\" antes del ORDER BY.",
+      "evidencia": [
+        {
+          "archivo": "Services/ReporteService.cs",
+          "linea": 42
+        },
+        {
+          "archivo": "Services/ReporteService.cs",
+          "linea": 10
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "G-01",
+      "origen": "gaps",
+      "veredicto": "sobrevive",
+      "motivo": "No hay filtro, middleware ni política que aplique RN-01: GET /api/cuentas/{id} devuelve cualquier cuenta: la consulta filtra solo por Id, no por el cliente autenticado.",
+      "evidencia": [
+        {
+          "archivo": "Controllers/CuentasController.cs",
+          "linea": 20
+        },
+        {
+          "archivo": "Repositories/CuentaRepository.cs",
+          "linea": 16
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "G-02",
+      "origen": "gaps",
+      "veredicto": "sobrevive",
+      "motivo": "No hay filtro, middleware ni política que aplique RN-05: CuentasController no tiene [Authorize]: los tres endpoints de cuentas responden sin sesión.",
+      "evidencia": [
+        {
+          "archivo": "Controllers/CuentasController.cs",
+          "linea": 10
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "G-03",
+      "origen": "gaps",
+      "veredicto": "sobrevive",
+      "motivo": "No hay filtro, middleware ni política que aplique RN-04: La identidad sale de la cabecera X-Cliente-Id y de la cookie cliente_id (sin firmar), no del token.",
+      "evidencia": [
+        {
+          "archivo": "Controllers/TransferenciasController.cs",
+          "linea": 19
+        },
+        {
+          "archivo": "Controllers/CuentasController.cs",
+          "linea": 34
+        },
+        {
+          "archivo": "Controllers/AuthController.cs",
+          "linea": 23
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "G-04",
+      "origen": "gaps",
+      "veredicto": "sobrevive",
+      "motivo": "No hay filtro, middleware ni política que aplique RN-02: Transferencias de más de 10 000 se ejecutan sin aprobación: Constantes.UmbralAprobacion no se usa.",
+      "evidencia": [
+        {
+          "archivo": "Services/TransferenciaService.cs",
+          "linea": 24
+        },
+        {
+          "archivo": "Models/Constantes.cs",
+          "linea": 7
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "G-05",
+      "origen": "gaps",
+      "veredicto": "sobrevive",
+      "motivo": "No hay filtro, middleware ni política que aplique RN-03: No se controla el límite diario de 20 000: Constantes.LimiteDiario no se usa.",
+      "evidencia": [
+        {
+          "archivo": "Services/TransferenciaService.cs",
+          "linea": 24
+        },
+        {
+          "archivo": "Models/Constantes.cs",
+          "linea": 8
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "G-06",
+      "origen": "gaps",
+      "veredicto": "sobrevive",
+      "motivo": "No hay filtro, middleware ni política que aplique HU-03: No se valida monto > 0 ni que la cuenta origen sea del cliente: un monto negativo invierte la transferencia.",
+      "evidencia": [
+        {
+          "archivo": "Models/Dtos.cs",
+          "linea": 6
+        },
+        {
+          "archivo": "Services/TransferenciaService.cs",
+          "linea": 24
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "G-07",
+      "origen": "gaps",
+      "veredicto": "sobrevive",
+      "motivo": "No hay filtro, middleware ni política que aplique HU-04: La subida no limita tipo (PDF/imagen) ni tamaño (5 MB) y guarda con el nombre del cliente, no uno generado.",
+      "evidencia": [
+        {
+          "archivo": "Controllers/DocumentosController.cs",
+          "linea": 18
+        },
+        {
+          "archivo": "Services/DocumentoService.cs",
+          "linea": 13
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "G-08",
+      "origen": "gaps",
+      "veredicto": "sobrevive",
+      "motivo": "No hay filtro, middleware ni política que aplique HU-05: El formato de exportación no se limita a pdf o csv.",
+      "evidencia": [
+        {
+          "archivo": "Controllers/ReportesController.cs",
+          "linea": 19
+        },
+        {
+          "archivo": "Services/ReporteService.cs",
+          "linea": 27
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "G-09",
+      "origen": "gaps",
+      "veredicto": "sobrevive",
+      "motivo": "No hay filtro, middleware ni política que aplique HU-02: La búsqueda por titular devuelve CuentaDto completo, con Saldo y ClienteId de terceros.",
+      "evidencia": [
+        {
+          "archivo": "Controllers/CuentasController.cs",
+          "linea": 27
+        },
+        {
+          "archivo": "Models/Dtos.cs",
+          "linea": 4
+        }
+      ]
+    },
+    {
+      "id_hallazgo": "G-10",
+      "origen": "gaps",
+      "veredicto": "sobrevive",
+      "motivo": "No hay filtro, middleware ni política que aplique RN-01: El historial de movimientos no comprueba que la cuenta sea del cliente autenticado.",
+      "evidencia": [
+        {
+          "archivo": "Controllers/TransferenciasController.cs",
+          "linea": 29
+        },
+        {
+          "archivo": "Repositories/TransferenciaRepository.cs",
+          "linea": 26
+        }
+      ]
+    }
+  ]
+}

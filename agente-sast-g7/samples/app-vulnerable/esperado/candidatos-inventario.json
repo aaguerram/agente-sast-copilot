@@ -1,0 +1,151 @@
+{
+  "paso": "inventario",
+  "ruta": "agente-sast-g7/samples/app-vulnerable",
+  "generado_por": "agente-sast-g7/scripts/metodologia.py (heurístico, sin razonamiento)",
+  "total": 15,
+  "candidatos": [
+    {
+      "archivo": "Controllers/CuentasController.cs",
+      "puntaje": 12,
+      "nivel": "Alto",
+      "senales": [
+        "autenticacion",
+        "endpoints:3",
+        "controlador-sin-authorize"
+      ],
+      "posicion": 1
+    },
+    {
+      "archivo": "Controllers/AuthController.cs",
+      "puntaje": 10,
+      "nivel": "Alto",
+      "senales": [
+        "autenticacion",
+        "endpoints:2",
+        "controlador-sin-authorize"
+      ],
+      "posicion": 2
+    },
+    {
+      "archivo": "Controllers/DocumentosController.cs",
+      "puntaje": 9,
+      "nivel": "Alto",
+      "senales": [
+        "archivos",
+        "endpoints:3"
+      ],
+      "posicion": 3
+    },
+    {
+      "archivo": "Services/ReporteService.cs",
+      "puntaje": 9,
+      "nivel": "Alto",
+      "senales": [
+        "comando-sistema",
+        "red-saliente",
+        "dinero"
+      ],
+      "posicion": 4
+    },
+    {
+      "archivo": "Services/DocumentoService.cs",
+      "puntaje": 7,
+      "nivel": "Alto",
+      "senales": [
+        "archivos",
+        "deserializacion"
+      ],
+      "posicion": 5
+    },
+    {
+      "archivo": "Controllers/ReportesController.cs",
+      "puntaje": 6,
+      "nivel": "Medio",
+      "senales": [
+        "endpoints:3"
+      ],
+      "posicion": 6
+    },
+    {
+      "archivo": "Controllers/TransferenciasController.cs",
+      "puntaje": 6,
+      "nivel": "Medio",
+      "senales": [
+        "dinero",
+        "endpoints:2"
+      ],
+      "posicion": 7
+    },
+    {
+      "archivo": "Repositories/CuentaRepository.cs",
+      "puntaje": 5,
+      "nivel": "Medio",
+      "senales": [
+        "sql",
+        "dinero"
+      ],
+      "posicion": 8
+    },
+    {
+      "archivo": "Repositories/ReporteRepository.cs",
+      "puntaje": 5,
+      "nivel": "Medio",
+      "senales": [
+        "sql",
+        "dinero"
+      ],
+      "posicion": 9
+    },
+    {
+      "archivo": "Repositories/TransferenciaRepository.cs",
+      "puntaje": 5,
+      "nivel": "Medio",
+      "senales": [
+        "sql",
+        "dinero"
+      ],
+      "posicion": 10
+    },
+    {
+      "archivo": "Models/Dtos.cs",
+      "puntaje": 2,
+      "nivel": "Bajo",
+      "senales": [
+        "dinero"
+      ],
+      "posicion": 11
+    },
+    {
+      "archivo": "Program.cs",
+      "puntaje": 2,
+      "nivel": "Bajo",
+      "senales": [
+        "dinero"
+      ],
+      "posicion": 12
+    },
+    {
+      "archivo": "Services/TransferenciaService.cs",
+      "puntaje": 2,
+      "nivel": "Bajo",
+      "senales": [
+        "dinero"
+      ],
+      "posicion": 13
+    },
+    {
+      "archivo": "Models/Constantes.cs",
+      "puntaje": 0,
+      "nivel": "Bajo",
+      "senales": [],
+      "posicion": 14
+    },
+    {
+      "archivo": "Services/CuentaService.cs",
+      "puntaje": 0,
+      "nivel": "Bajo",
+      "senales": [],
+      "posicion": 15
+    }
+  ]
+}
