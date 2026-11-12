@@ -35,6 +35,20 @@ puede replicar en cualquier Azure DevOps.
 - Metodología SAST descompuesta sobre el código: agente `metodologia-sast`
   (skills `/metodologia [ruta]`, `/metodologia-paso <paso> [ruta]` y `/demo`); resultados en
   `salida/reportes/metodologia/`; comparación con la referencia: `./scripts/agente.sh comparar`.
+- **Carpeta de la corrida (`$RUN`) — varios proyectos y varias ejecuciones.** Para no pisar
+  resultados entre proyectos ni entre corridas del mismo proyecto (a medida que se corrige),
+  cada ejecución vive en `$RUN = salida/reportes/metodologia/<proyecto>/<run_id>/`:
+  - `<proyecto>` = nombre de la carpeta objetivo (`app-vulnerable`, el de `objetivos/<proyecto>/`…).
+  - `<run_id>` = `timestamp-commit` del proyecto objetivo. Lo fija **una sola vez** el agente
+    `metodologia-sast` (o `orquestador-pruebas`) al inicio de la corrida y se pasa **igual a
+    todos los pasos** con `--run --proyecto <proyecto> --run-id <run_id>`.
+  - **Todas las rutas `salida/reportes/metodologia/<archivo>` que aparecen en los agentes se
+    entienden bajo `$RUN`** (p. ej. `entradas.json` → `$RUN/entradas.json`). Los `candidatos-*.json`
+    y cada JSON de paso llevan dentro `proyecto`, `run_id`, `timestamp` y `commit`, así que son
+    rastreables por sí solos. `metodologia.py` crea `$RUN`, un puntero `latest/` a la última
+    corrida y un `_indice.json` con el historial del proyecto.
+  - La ruta plana `salida/reportes/metodologia/<archivo>` (sin `<proyecto>/<run_id>`) queda para
+    la demo de un único proyecto; en modo agente con objetivos reales, usa siempre `$RUN`.
 - Delegación: pide a cada agente del paso que actúe como subagente cuando tu entorno lo
   permita; si no, lee su `.agent.md` y aplícalo tú. No dependas de nombres de herramientas
   de un arnés concreto.

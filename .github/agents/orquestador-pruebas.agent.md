@@ -98,7 +98,9 @@ campos de varias líneas y produce 404 engañosos): usa el script.
    - **Sobre el código** (lo que las herramientas no ven: flujos entre archivos y gaps
      contra requisitos): delega en el agente `metodologia-sast` (o sigue
      `.github/skills/metodologia/SKILL.md` / `.github/skills/metodologia-paso/SKILL.md`). Sus hallazgos validados quedan en
-     `salida/reportes/metodologia/priorizacion.json`.
+     `$RUN/priorizacion.json` (con varios proyectos o varias corridas, `$RUN =
+     salida/reportes/metodologia/<proyecto>/<run_id>/`; ver convención `$RUN` en
+     `copilot-instructions.md`). Fija `<proyecto>`/`<run_id>` al inicio y pásalos a la cadena.
    Pregunta **sobre qué código**: la muestra `agente-sast-g7/samples/app-vulnerable` (por
    defecto) o un proyecto real del concurso en `objetivos/<proyecto>` (ver
    `objetivos/README.md`). El concurso valida una ejecución real: el objetivo debe tener

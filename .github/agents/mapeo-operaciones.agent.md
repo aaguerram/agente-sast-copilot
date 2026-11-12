@@ -15,12 +15,13 @@ si el dato es controlable desde fuera: eso lo hace `trazador-flujos`.
 
 - **Entrada:** una ruta (por defecto `agente-sast-g7/samples/app-vulnerable`).
 - **Dependencias:** ninguna. **Corre solo.**
-- **Salida:** `salida/reportes/metodologia/operaciones.json`.
+- **Salida:** `$RUN/operaciones.json` (= `salida/reportes/metodologia/<proyecto>/<run_id>/operaciones.json`; ver convención `$RUN` en `copilot-instructions.md`).
 
 ## Pasos
 
 1. Candidatos deterministas:
-   `docker compose --profile agentes run --rm py agente-sast-g7/scripts/metodologia.py operaciones <ruta> -o salida/reportes/metodologia/candidatos-operaciones.json`
+   `docker compose --profile agentes run --rm py agente-sast-g7/scripts/metodologia.py operaciones <ruta> --run --proyecto <proyecto> --run-id <run_id>`
+   (escribe `$RUN/candidatos-operaciones.json`; mismo `<proyecto>`/`<run_id>` que el orquestador. Demo de un solo proyecto: `-o salida/reportes/metodologia/candidatos-operaciones.json`.)
 2. Verifica cada uno y agrupa los que son la misma operación (por ejemplo `Path.Combine` y
    `File.WriteAllBytes` de un mismo método). Busca los que el script no ve: `ExecuteSqlRaw`,
    `FromSqlRaw`, XML con resolución externa, `Assembly.Load`, plantillas sin codificar,

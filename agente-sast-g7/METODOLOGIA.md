@@ -57,7 +57,11 @@ flowchart LR
 - **IA:** el agente razona sobre el código y los JSON anteriores. El resultado puede variar
   entre ejecuciones; por eso estos pasos **no bloquean** el pipeline.
 - **Ejecución real:** los resultados de cada corrida quedan en `salida/reportes/metodologia/`,
-  carpeta que no se versiona.
+  carpeta que no se versiona. Cuando se analizan **varios proyectos** o se corre **varias veces
+  el mismo** (a medida que se corrige), se usa el modo `--run`, que separa cada corrida en
+  `salida/reportes/metodologia/<proyecto>/<run_id>/` para que no se pisen. Cada salida, además,
+  lleva dentro `proyecto`, `run_id`, `timestamp` y `commit`, así que es rastreable por sí sola
+  (ver sección 2.4 y 4).
 - **Referencia:** `agente-sast-g7/samples/app-vulnerable/esperado/` guarda la respuesta
   correcta para la muestra y se versiona. Sirve para comparar.
 
@@ -132,13 +136,29 @@ Si el archivo no es un SARIF válido (no tiene `runs`), el script termina con c�
 ### 2.4 Candidatos deterministas (apoyo de los pasos 1 a 3)
 
 ```bash
+# Un solo proyecto, salida plana (compatibilidad):
 docker compose --profile agentes run --rm py agente-sast-g7/scripts/metodologia.py todo <ruta> --dir salida/reportes/metodologia
 # o un paso:  metodologia.py inventario|entradas|operaciones <ruta> -o <archivo.json>
+
+# Varios proyectos o varias corridas del mismo (recomendado en modo agente):
+docker compose --profile agentes run --rm py agente-sast-g7/scripts/metodologia.py todo <ruta> --run
 ```
 
 Genera `candidatos-inventario.json`, `candidatos-entradas.json` y
 `candidatos-operaciones.json` (detalle en la sección 4). Son **pistas**: el agente de cada
 paso las verifica y las completa.
+
+**Modo `--run` (identidad de proyecto y ejecución).** Escribe en
+`salida/reportes/metodologia/<proyecto>/<run_id>/candidatos-*.json`, sin pisar corridas previas:
+
+- `<proyecto>` = nombre de la carpeta analizada (o `--proyecto <slug>`).
+- `<run_id>` = `timestamp + commit del proyecto objetivo` (o `--run-id <id>`). El **commit** ata
+  cada corrida al estado exacto del código, de modo que se distinguen las ejecuciones del mismo
+  proyecto mientras se va corrigiendo.
+- Mantiene `<proyecto>/latest` → última corrida, `<proyecto>/_indice.json` con el historial, y
+  un `run.json` por corrida con el conteo de cada paso.
+- El `commit` se lee del repo git que contenga al objetivo; clona cada proyecto como su propio
+  repo en `objetivos/` para que sea el commit de ese proyecto.
 
 ## 3. Los 8 pasos
 
@@ -634,9 +654,17 @@ Los tres comparten la misma cabecera:
 |---|---|
 | `paso` | `inventario`, `entradas` u `operaciones` |
 | `ruta` | Carpeta analizada |
+| `proyecto` | Slug del proyecto (nombre de la carpeta o `--proyecto`) |
+| `run_id` | Identificador de la ejecución (`timestamp + commit`, o `--run-id`) |
+| `timestamp` | Momento de la corrida (UTC, ISO-8601) |
+| `commit` | Commit corto del proyecto objetivo (o `null` si no es repo git) |
 | `generado_por` | `agente-sast-g7/scripts/metodologia.py (heurístico, sin razonamiento)` |
 | `total` | Número de candidatos |
 | `candidatos` | Lista |
+
+Los campos `proyecto`, `run_id`, `timestamp` y `commit` hacen cada archivo autodescriptivo:
+identifican de qué proyecto y de qué ejecución proviene aunque el archivo se mueva o se junte
+con los de otras corridas.
 
 Cada archivo agrega sus propios campos:
 
@@ -777,6 +805,7 @@ devils-advocate (sobrevive) → priorizador (Alta/Crítica) → remediador (corr
 | `normalizado.json` | `normalizar_sarif.py` (`/sast`) | Cadena `/sast` | SARIF en formato común |
 | `validado.json` | `/sast` o el agente (metodología) | `crear_incidencias_ado.py` | Hallazgos aprobados para incidencias |
 
-Los archivos de cada ejecución quedan en `salida/reportes/metodologia/`, salvo
+Los archivos de cada ejecución quedan en `salida/reportes/metodologia/` (o en
+`salida/reportes/metodologia/<proyecto>/<run_id>/` con el modo `--run`), salvo
 `normalizado.json` y `validado.json`, que quedan en `salida/reportes/`. Las versiones de
 referencia están en `agente-sast-g7/samples/app-vulnerable/esperado/`.

@@ -15,12 +15,13 @@ vulnerabilidades concretas: decides el orden de revisión de los pasos siguiente
 
 - **Entrada:** una ruta. Por defecto `agente-sast-g7/samples/app-vulnerable`.
 - **Dependencias:** ninguna. **Corre solo.**
-- **Salida:** `salida/reportes/metodologia/ranking.json`.
+- **Salida:** `$RUN/ranking.json` (= `salida/reportes/metodologia/<proyecto>/<run_id>/ranking.json`; ver convención `$RUN` en `copilot-instructions.md`).
 
 ## Pasos
 
 1. Genera candidatos deterministas (no transcribas a mano):
-   `docker compose --profile agentes run --rm py agente-sast-g7/scripts/metodologia.py inventario <ruta> -o salida/reportes/metodologia/candidatos-inventario.json`
+   `docker compose --profile agentes run --rm py agente-sast-g7/scripts/metodologia.py inventario <ruta> --run --proyecto <proyecto> --run-id <run_id>`
+   (escribe `$RUN/candidatos-inventario.json`; usa el mismo `<proyecto>`/`<run_id>` que fijó el orquestador. Para la demo de un solo proyecto puede omitirse `--run` y usar `-o salida/reportes/metodologia/candidatos-inventario.json`.)
 2. Lee los candidatos y **abre los archivos de nivel Alto y Medio**. Ajusta el nivel con
    criterio, explicándolo en `motivo`:
    - Sube: autenticación, sesión, dinero (transferencias, pagos), SQL, archivos subidos,

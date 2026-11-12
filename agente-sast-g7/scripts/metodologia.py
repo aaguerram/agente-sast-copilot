@@ -32,7 +32,9 @@ import bisect
 import json
 import os
 import re
+import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 IGNORAR_DIRS = {"bin", "obj", ".git", "node_modules", "esperado"}
@@ -662,6 +664,120 @@ def operaciones(ruta: Path) -> dict:
                      [{"id": f"O-{n:03d}", **c} for n, c in enumerate(candidatos, 1)])
 
 
+# ---------------------------------------------------------------- identidad de la ejecución
+
+
+def _commit_objetivo(ruta: Path) -> str | None:
+    """Commit corto del proyecto objetivo si es un repo git; None si no lo es.
+
+    Es el ancla para distinguir ejecuciones del MISMO proyecto a medida que se corrige:
+    cada corrida queda atada al estado exacto del código analizado.
+    """
+    base = ruta if ruta.is_dir() else ruta.parent
+    try:
+        r = subprocess.run(
+            ["git", "-C", str(base), "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, timeout=5,
+        )
+        return r.stdout.strip() or None if r.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def identidad(ruta: Path, proyecto: str | None = None, run_id: str | None = None) -> dict:
+    """Metadatos que hacen cada salida autodescriptiva y rastreable.
+
+    - proyecto: slug del proyecto (por defecto, el nombre de la carpeta objetivo).
+    - run_id:   identifica la ejecución; por defecto timestamp + commit del objetivo,
+                de modo que varias corridas (del mismo o de distintos proyectos) no chocan.
+    """
+    proy = proyecto or (ruta.name if ruta.name else "proyecto")
+    ahora = datetime.now(timezone.utc)
+    ts = ahora.strftime("%Y%m%d-%H%M%S")
+    commit = _commit_objetivo(ruta)
+    rid = run_id or (f"{ts}-{commit}" if commit else ts)
+    return {
+        "proyecto": proy,
+        "run_id": rid,
+        "timestamp": ahora.isoformat(timespec="seconds"),
+        "commit": commit,
+    }
+
+
+def con_meta(doc: dict, meta: dict) -> dict:
+    """Inserta la identidad de proyecto/ejecución al inicio del documento (tras 'ruta')."""
+    fusion: dict = {}
+    for clave, valor in doc.items():
+        fusion[clave] = valor
+        if clave == "ruta":
+            fusion.update(meta)
+    if "proyecto" not in fusion:  # doc sin 'ruta' (defensivo)
+        fusion = {**meta, **fusion}
+    return fusion
+
+
+def _registrar_run(raiz: Path, dir_run: Path, meta: dict, docs: dict) -> None:
+    """Deja rastro de la corrida: manifiesto, puntero 'latest' e índice acumulado.
+
+    Estructura resultante bajo <raiz>/<proyecto>/:
+        <run_id>/candidatos-*.json   una carpeta por ejecución (no se pisan)
+        <run_id>/run.json            manifiesto de la corrida
+        latest -> <run_id>           puntero a la última ejecución
+      y <raiz>/<proyecto>/_indice.json con el historial de corridas.
+    """
+    dir_proy = dir_run.parent
+    pasos_nuevos = {n: {"total": d.get("total", 0), "archivo": f"candidatos-{n}.json"}
+                    for n, d in docs.items()}
+    # Fusiona con un run.json previo: correr paso a paso con el mismo run_id acumula pasos.
+    manifiesto_f = dir_run / "run.json"
+    pasos = {}
+    try:
+        previo = json.loads(manifiesto_f.read_text(encoding="utf-8"))
+        if isinstance(previo.get("pasos"), dict):
+            pasos.update(previo["pasos"])
+    except (OSError, json.JSONDecodeError):
+        pass
+    pasos.update(pasos_nuevos)
+    cualquier_ruta = next((d.get("ruta") for d in docs.values() if d.get("ruta")), None)
+    manifiesto = {
+        **meta,
+        "ruta": cualquier_ruta,
+        "generado_por": "agente-sast-g7/scripts/metodologia.py",
+        "pasos": pasos,
+    }
+    manifiesto_f.write_text(
+        json.dumps(manifiesto, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    # Puntero 'latest' -> último run_id (symlink; copia del run.json si el SO no deja symlinks).
+    latest = dir_proy / "latest"
+    try:
+        if latest.is_symlink() or latest.exists():
+            if latest.is_dir() and not latest.is_symlink():
+                import shutil
+                shutil.rmtree(latest)
+            else:
+                latest.unlink()
+        latest.symlink_to(meta["run_id"], target_is_directory=True)
+    except OSError:
+        (dir_proy / "latest.json").write_text(
+            json.dumps({"run_id": meta["run_id"]}, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8")
+
+    # Índice acumulado de corridas del proyecto (append, más reciente al final).
+    indice_f = dir_proy / "_indice.json"
+    try:
+        indice = json.loads(indice_f.read_text(encoding="utf-8"))
+        corridas = indice.get("corridas", []) if isinstance(indice, dict) else []
+    except (OSError, json.JSONDecodeError):
+        corridas = []
+    corridas = [c for c in corridas if c.get("run_id") != meta["run_id"]]
+    corridas.append({**meta, "pasos": manifiesto["pasos"]})
+    indice_f.write_text(
+        json.dumps({"proyecto": meta["proyecto"], "corridas": corridas},
+                   ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f">> run {meta['run_id']} registrado en {dir_proy}", file=sys.stderr)
+
+
 # ---------------------------------------------------------------- CLI
 
 PASOS = {"inventario": inventario, "entradas": entradas, "operaciones": operaciones}
@@ -684,20 +800,46 @@ def main(argv: list[str] | None = None) -> int:
         s = sub.add_parser(nombre)
         s.add_argument("ruta")
         s.add_argument("-o", "--salida")
+        s.add_argument("--dir", default="salida/reportes/metodologia")
+        s.add_argument("--proyecto", help="slug del proyecto (por defecto, nombre de la carpeta)")
+        s.add_argument("--run-id", help="id de ejecución (por defecto, timestamp + commit del objetivo)")
+        s.add_argument("--run", action="store_true",
+                       help="escribe en <dir>/<proyecto>/<run_id>/candidatos-<paso>.json (comparte --run-id con los demás pasos)")
     s = sub.add_parser("todo")
     s.add_argument("ruta")
     s.add_argument("--dir", default="salida/reportes/metodologia")
+    s.add_argument("--proyecto", help="slug del proyecto (por defecto, nombre de la carpeta)")
+    s.add_argument("--run-id", help="id de ejecución (por defecto, timestamp + commit del objetivo)")
+    s.add_argument("--run", action="store_true",
+                   help="escribe en <dir>/<proyecto>/<run_id>/ (sin pisar corridas previas) y actualiza latest/ e índice")
     args = ap.parse_args(argv)
 
     ruta = Path(args.ruta)
     if not ruta.exists():
         print(f"ERROR: no existe {ruta}", file=sys.stderr)
         return 1
+
+    meta = identidad(ruta, getattr(args, "proyecto", None), getattr(args, "run_id", None))
+
     if args.cmd == "todo":
+        base = Path(args.dir)
+        if args.run:
+            base = base / meta["proyecto"] / meta["run_id"]
+        docs = {}
         for nombre, funcion in PASOS.items():
-            escribir(funcion(ruta), str(Path(args.dir) / f"candidatos-{nombre}.json"))
+            doc = con_meta(funcion(ruta), meta)
+            docs[nombre] = doc
+            escribir(doc, str(base / f"candidatos-{nombre}.json"))
+        if args.run:
+            _registrar_run(Path(args.dir), base, meta, docs)
     else:
-        escribir(PASOS[args.cmd](ruta), args.salida)
+        doc = con_meta(PASOS[args.cmd](ruta), meta)
+        if getattr(args, "run", False):
+            base = Path(args.dir) / meta["proyecto"] / meta["run_id"]
+            escribir(doc, str(base / f"candidatos-{args.cmd}.json"))
+            _registrar_run(Path(args.dir), base, meta, {args.cmd: doc})
+        else:
+            escribir(doc, args.salida)
     return 0
 
 

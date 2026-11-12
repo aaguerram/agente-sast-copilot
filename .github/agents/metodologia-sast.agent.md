@@ -30,7 +30,12 @@ Terminal: PowerShell (Windows) → `./scripts/agente.ps1`; bash (Linux/macOS) �
   gates; ver `objetivos/README.md`). Requisitos para el paso 5: `<ruta>/REQUISITOS.md` o
   el documento que indique el usuario; si no hay, el paso 5 se omite y se dice.
   El objetivo es una **ejecución real**: analiza siempre código que tenga vulnerabilidades.
-- **Resultados:** `salida/reportes/metodologia/` (crea la carpeta si no existe).
+- **Resultados:** `$RUN = salida/reportes/metodologia/<proyecto>/<run_id>/` (ver convención
+  `$RUN` en `copilot-instructions.md`). **Al iniciar una corrida, fija `<proyecto>` y `<run_id>`
+  una sola vez** y pásalos igual a todos los pasos (`--run --proyecto <proyecto> --run-id <run_id>`),
+  así los distintos proyectos y las sucesivas correcciones del mismo no se pisan. `metodologia.py`
+  crea la carpeta, el puntero `latest/` y el `_indice.json`. (Demo de un único proyecto: puede
+  usarse la ruta plana `salida/reportes/metodologia/` sin `--run`.)
 - **Comandos:** solo con `docker compose` (`PY = docker compose --profile agentes run --rm py`).
   Nunca instales nada.
 
@@ -65,15 +70,19 @@ Muestra la tabla de arriba, qué archivos ya existen en `salida/reportes/metodol
 3. Muestra la tabla del paso y la ruta del JSON generado.
 
 ## Modo 3 — Todos los pasos
-1. Crea un checklist (todos) con los pasos 1–8 + informe.
-2. Opcional y rápido: `PY agente-sast-g7/scripts/metodologia.py todo <ruta> --dir salida/reportes/metodologia`
-   para tener todos los candidatos deterministas de una vez.
-3. Ejecuta 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 delegando en cada agente. Los pasos 1, 2, 3 y 5
-   son independientes: puedes lanzarlos sin esperar entre ellos.
-4. Si un paso termina sin hallazgos, dilo explícitamente y sigue (no inventes hallazgos).
-5. Genera el informe.
+1. **Fija la corrida:** define `<proyecto>` (nombre de la carpeta objetivo) y `<run_id>` una
+   sola vez; se reutilizan en todos los pasos para que la corrida quede en un único `$RUN`.
+2. Crea un checklist (todos) con los pasos 1–8 + informe.
+3. Opcional y rápido: `PY agente-sast-g7/scripts/metodologia.py todo <ruta> --run --proyecto <proyecto> --run-id <run_id>`
+   para tener todos los candidatos deterministas de una vez en `$RUN` (demo de un solo
+   proyecto: `todo <ruta> --dir salida/reportes/metodologia`).
+4. Ejecuta 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 delegando en cada agente, **pasando a cada uno el mismo
+   `<proyecto>` y `<run_id>`**. Los pasos 1, 2, 3 y 5 son independientes: puedes lanzarlos sin
+   esperar entre ellos.
+5. Si un paso termina sin hallazgos, dilo explícitamente y sigue (no inventes hallazgos).
+6. Genera el informe.
 
-## Informe (`salida/reportes/metodologia/informe.md`)
+## Informe (`$RUN/informe.md`)
 - Ruta analizada, fecha, pasos ejecutados y omitidos.
 - Tabla `Paso → Hallazgos → Archivo`.
 - Top de archivos por riesgo, flujos (fuente → sumidero, archivos cruzados, saneamiento),

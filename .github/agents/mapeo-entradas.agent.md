@@ -16,12 +16,13 @@ juzgas si hay vulnerabilidad: eso lo hace `trazador-flujos`.
 - **Entrada:** una ruta (por defecto `agente-sast-g7/samples/app-vulnerable`).
 - **Dependencias:** ninguna. **Corre solo.** Si existe
   `salida/reportes/metodologia/ranking.json`, revisa primero los archivos de nivel Alto.
-- **Salida:** `salida/reportes/metodologia/entradas.json`.
+- **Salida:** `$RUN/entradas.json` (= `salida/reportes/metodologia/<proyecto>/<run_id>/entradas.json`; ver convención `$RUN` en `copilot-instructions.md`).
 
 ## Pasos
 
 1. Candidatos deterministas:
-   `docker compose --profile agentes run --rm py agente-sast-g7/scripts/metodologia.py entradas <ruta> -o salida/reportes/metodologia/candidatos-entradas.json`
+   `docker compose --profile agentes run --rm py agente-sast-g7/scripts/metodologia.py entradas <ruta> --run --proyecto <proyecto> --run-id <run_id>`
+   (escribe `$RUN/candidatos-entradas.json`; mismo `<proyecto>`/`<run_id>` que el orquestador. Demo de un solo proyecto: `-o salida/reportes/metodologia/candidatos-entradas.json`.)
 2. Verifica cada candidato en el código y **busca los que el script no ve**: propiedades de
    DTOs que llegan en el cuerpo (`dto.ReturnUrl`, `dto.WebhookUrl`) (el script ya reporta
    `IFormFile.FileName` y parámetros con varios atributos o en varias líneas),
