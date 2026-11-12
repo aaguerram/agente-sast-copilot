@@ -287,6 +287,45 @@ class TestComparadorEsperado(unittest.TestCase):
             self.assertEqual(r.returncode, 1, r.stdout)
             self.assertIn("!", r.stdout)
 
+class TestValidarCorrida(unittest.TestCase):
+    """metodologia.py validar: comprobación final de una corrida en un solo comando."""
+
+    def copiar_referencia(self, tmp):
+        import shutil
+        for f in ESPERADO_DIR.glob("*.json"):
+            shutil.copy(f, tmp)
+
+    def test_referencia_es_consistente(self):
+        errores, _, resumen = metodologia.validar_corrida(ESPERADO_DIR)
+        self.assertEqual(errores, [])
+        self.assertTrue(all(r["estado"] == "ok" for r in resumen))
+        self.assertEqual(metodologia.main(["validar", str(ESPERADO_DIR)]), 0)
+
+    def test_falta_paso_y_ruta_distinta(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.copiar_referencia(tmp)
+            (Path(tmp) / "priorizacion.json").unlink()
+            f = Path(tmp) / "flujos.json"
+            doc = json.loads(f.read_text(encoding="utf-8"))
+            doc["ruta"] = "objetivos/otro"
+            f.write_text(json.dumps(doc), encoding="utf-8")
+            errores, _, _ = metodologia.validar_corrida(Path(tmp))
+            self.assertTrue(any("priorizacion.json" in e for e in errores))
+            self.assertTrue(any("'ruta' no coincide" in e for e in errores))
+            self.assertEqual(metodologia.main(["validar", tmp]), 2)
+
+    def test_gaps_es_opcional(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.copiar_referencia(tmp)
+            (Path(tmp) / "gaps.json").unlink()
+            f = Path(tmp) / "validacion.json"
+            doc = json.loads(f.read_text(encoding="utf-8"))
+            doc["veredictos"] = [v for v in doc["veredictos"] if v.get("origen") != "gaps"]
+            f.write_text(json.dumps(doc), encoding="utf-8")
+            errores, avisos, _ = metodologia.validar_corrida(Path(tmp))
+            self.assertTrue(any("gaps.json" in a for a in avisos))
+            self.assertFalse(any("gaps.json" in e for e in errores))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

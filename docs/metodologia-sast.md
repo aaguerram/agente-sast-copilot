@@ -104,7 +104,24 @@ docker compose --profile agentes run --rm py agente-sast-g7/scripts/metodologia.
 ```
 
 Los pasos 4–8 son razonamiento del agente: seguir el dato entre archivos, comparar con
-los requisitos, refutar e interpretar.
+los requisitos, refutar e interpretar. Para que ese razonamiento sea repetible, los pasos
+5–8 se apoyan en la **base de conocimiento** versionada `agente-sast-g7/kb/` (MITRE CWE →
+OWASP, OWASP ASVS, OWASP Cheat Sheets) y en la matriz de criticidad de
+[Criterios de riesgo](criterios-riesgo.md).
+
+### Fuentes SARIF
+
+| Fuente | Cómo se obtiene | CWE / OWASP |
+|---|---|---|
+| Semgrep CE | `./scripts/agente.sh objetivo <ruta>` (servicio `semgrep-objetivo`) | De las etiquetas de cada regla |
+| SonarQube Community | `./scripts/agente.sh validar --solo sonarqube` | De la regla |
+| **Analizadores de seguridad .NET** | `./scripts/agente.sh dotnet <ruta>` (servicio `dotnet-objetivo`: `dotnet build` con `AnalysisModeSecurity=All` y `ErrorLog` SARIF 2.1) | CWE de la tabla `CAxxxx` de `normalizar_sarif.py`; OWASP desde la KB |
+| Fortify (banco) | Reporte SARIF oficial | De la herramienta |
+
+Los analizadores .NET siguen el dato entre métodos y archivos (reglas `CA3001`–`CA3012`)
+pero necesitan que el proyecto **compile** (restaura NuGet en el contenedor). Sobre la
+muestra `app-vulnerable` reportan inyección SQL (`CA2100`, `CA3001`), comandos
+(`CA3006`), rutas (`CA3003`) y deserialización insegura (`CA2326`, `CA2327`).
 
 ## Muestra y respuesta de referencia
 

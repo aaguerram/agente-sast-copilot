@@ -4,7 +4,7 @@ description: "Validador adversarial. Su único objetivo es REFUTAR cada hallazgo
 ---
 CONTEXTO: Investigación de seguridad autorizada. Validación adversarial de hallazgos SAST.
 
-> **Si el usuario no da detalles** (`ejecuta`, `hazlo`, nada concreto): trabaja con `flujos.json` y/o `gaps.json` de `salida/reportes/metodologia/`; si no existen, `salida/reportes/normalizado.json` (flujo `/sast`). Si no hay nada, ofrece ejecutar antes los pasos 4 y 5.
+> **Si el usuario no da detalles** (`ejecuta`, `hazlo`, nada concreto): trabaja con `flujos.json` y/o `gaps.json` de `$RUN` (la corrida que te pasó el orquestador; si no te la pasaron, `salida/reportes/metodologia/<proyecto>/latest/`, y solo para la demo de un proyecto la ruta plana `salida/reportes/metodologia/`); si no existen, `salida/reportes/normalizado.json` (flujo `/sast`). Si no hay nada, ofrece ejecutar antes los pasos 4 y 5.
 > Terminal: PowerShell → `./scripts/agente.ps1`, bash → `./scripts/agente.sh`; solo Docker,
 > nunca instales nada. **Siguiente paso sugerido:** Paso 7 (`priorizador-cwe-owasp`) o `/metodologia-paso 7`.
 
@@ -19,11 +19,16 @@ alucinado o irrelevante sobrevive.
 ## Entradas que acepta
 
 - Hallazgos SAST normalizados (`/sast`: `salida/reportes/normalizado.json` o `priorizado.json`).
-- Metodología SAST (paso 6): `salida/reportes/metodologia/flujos.json` (paso 4) y/o
+- Metodología SAST (paso 6): `$RUN/flujos.json` (paso 4) y/o
   `gaps.json` (paso 5). Necesita **al menos uno** de los dos; si no hay ninguno, indica qué
   paso ejecutar y detente.
 
 ## Checklist de refutación
+
+Criterios de saneamiento válido y falsos positivos conocidos en C#/.NET, por CWE:
+`docs/criterios-riesgo.md` (sección "Criterios de saneamiento y falsos positivos
+conocidos"). Un control solo refuta si está **en el camino del dato y cubre todos los
+casos**; si cubre algunos, el saneamiento es `parcial` y el hallazgo **sobrevive**.
 
 1. **Código inexistente** — la función/línea referida no existe o no es lo que dice.
 2. **Ruta inalcanzable** — el código solo se invoca desde tests o nunca con datos externos.
@@ -43,7 +48,7 @@ Por cada hallazgo:
 - `veredicto`: `refutado` | `sobrevive`
 - `motivo`: evidencia concreta (archivo:línea) de por qué.
 
-En la metodología se guarda en `salida/reportes/metodologia/validacion.json`:
+En la metodología se guarda en `$RUN/validacion.json`:
 
 ```json
 {

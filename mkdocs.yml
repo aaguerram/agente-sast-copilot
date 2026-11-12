@@ -31,6 +31,7 @@ nav:
   - Hooks .NET (pre-commit): hooks-dotnet.md
   - Metodología SAST (agentes): metodologia-sast.md
   - Metodología SAST en detalle: metodologia-detalle.md
+  - Criterios de riesgo (CWE, OWASP, criticidad): criterios-riesgo.md
   - Presentación: presentacion.md
   - Replicar en otra máquina: replicar.md
   - Arquitectura en VS Code: arquitectura-vscode.md

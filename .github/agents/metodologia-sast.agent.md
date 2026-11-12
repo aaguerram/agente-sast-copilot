@@ -28,7 +28,8 @@ Terminal: PowerShell (Windows) → `./scripts/agente.ps1`; bash (Linux/macOS) �
 - **Ruta por defecto:** `agente-sast-g7/samples/app-vulnerable` (requisitos en su `REQUISITOS.md`).
 - **Proyecto real del concurso:** `objetivos/<proyecto>/` (no versionado y fuera de los
   gates; ver `objetivos/README.md`). Requisitos para el paso 5: `<ruta>/REQUISITOS.md` o
-  el documento que indique el usuario; si no hay, el paso 5 se omite y se dice.
+  el documento que indique el usuario; si no hay, el paso 5 **no se omite**: usa OWASP ASVS
+  (`agente-sast-g7/kb/asvs-requisitos.md`) y el informe lo dice.
   El objetivo es una **ejecución real**: analiza siempre código que tenga vulnerabilidades.
 - **Resultados:** `$RUN = salida/reportes/metodologia/<proyecto>/<run_id>/` (ver convención
   `$RUN` en `copilot-instructions.md`). **Al iniciar una corrida, fija `<proyecto>` y `<run_id>`
@@ -47,7 +48,7 @@ Terminal: PowerShell (Windows) → `./scripts/agente.ps1`; bash (Linux/macOS) �
 | 2 | Mapeo de entradas | `mapeo-entradas` | Sí | ruta (usa 1 si existe) | `entradas.json` |
 | 3 | Mapeo de operaciones peligrosas | `mapeo-operaciones` | Sí | ruta | `operaciones.json` |
 | 4 | Trazado de flujos | `trazador-flujos` | No | 2 y 3 | `flujos.json` |
-| 5 | Análisis de gaps | `analizador-gaps` | Sí, con requisitos | ruta + requisitos | `gaps.json` |
+| 5 | Análisis de gaps | `analizador-gaps` | Sí | ruta + requisitos (o ASVS) | `gaps.json` |
 | 6 | Validación adversarial | `devils-advocate` | No | 4 y/o 5 | `validacion.json` |
 | 7 | Priorización CWE/OWASP | `priorizador-cwe-owasp` | No | 6 | `priorizacion.json` |
 | 8 | Remediación | `remediador` | No | 7 | `remediacion.json` |
@@ -72,15 +73,37 @@ Muestra la tabla de arriba, qué archivos ya existen en `salida/reportes/metodol
 ## Modo 3 — Todos los pasos
 1. **Fija la corrida:** define `<proyecto>` (nombre de la carpeta objetivo) y `<run_id>` una
    sola vez; se reutilizan en todos los pasos para que la corrida quede en un único `$RUN`.
+   Resuelve `$RUN` como **ruta completa** (`salida/reportes/metodologia/<proyecto>/<run_id>/`).
 2. Crea un checklist (todos) con los pasos 1–8 + informe.
-3. Opcional y rápido: `PY agente-sast-g7/scripts/metodologia.py todo <ruta> --run --proyecto <proyecto> --run-id <run_id>`
-   para tener todos los candidatos deterministas de una vez en `$RUN` (demo de un solo
-   proyecto: `todo <ruta> --dir salida/reportes/metodologia`).
-4. Ejecuta 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 delegando en cada agente, **pasando a cada uno el mismo
-   `<proyecto>` y `<run_id>`**. Los pasos 1, 2, 3 y 5 son independientes: puedes lanzarlos sin
-   esperar entre ellos.
-5. Si un paso termina sin hallazgos, dilo explícitamente y sigue (no inventes hallazgos).
-6. Genera el informe.
+3. **Primero los candidatos deterministas, en un solo comando:**
+   `PY agente-sast-g7/scripts/metodologia.py todo <ruta> --run --proyecto <proyecto> --run-id <run_id>`
+   (demo de un solo proyecto: `todo <ruta> --dir salida/reportes/metodologia`). Así ningún
+   subagente de los pasos 1–3 tiene que volver a lanzar Docker.
+4. **Delega con contexto explícito.** En el mensaje a cada subagente incluye siempre: la ruta
+   analizada, `<proyecto>`, `<run_id>`, la ruta completa de `$RUN`, **las rutas completas de
+   los JSON que debe leer** y la del que debe escribir (p. ej. `Lee $RUN/validacion.json,
+   $RUN/flujos.json y $RUN/gaps.json; escribe $RUN/priorizacion.json`). No dejes que el
+   subagente deduzca rutas.
+5. **Orden y paralelismo:**
+   - Tanda A, **en paralelo**: 1, 2, 3 y 5 (independientes).
+   - Luego 4 (necesita 2 y 3) → 6 → 7 → 8, en serie.
+   - Los pasos 7 y 8 son transformaciones cortas de JSON pequeños: si delegar es lento o
+     falla, aplícalos tú directamente con su `.agent.md` (no aportan una mirada independiente
+     como sí lo hace el paso 6).
+6. **Si un subagente falla** (red/DNS, tiempo agotado, archivo no encontrado):
+   - Error de red o de tiempo: **un solo reintento**; si vuelve a fallar, lee el `.agent.md`
+     del paso y aplícalo tú. No reintentes en bucle ni repitas pasos que ya terminaron bien.
+   - Archivo no encontrado: comprueba `$RUN` con `ls` y repite la delegación una vez con la
+     ruta completa correcta; si persiste, aplícalo tú.
+   - Anota en el informe (sección *Ejecución*) qué pasos se hicieron sin delegar y por qué.
+7. Si un paso termina sin hallazgos, dilo explícitamente y sigue (no inventes hallazgos).
+8. **Comprobación final en un comando** (no abras los JSON uno a uno):
+   `PY agente-sast-g7/scripts/metodologia.py validar $RUN`
+   — verifica que los 8 JSON existen y se leen, que son del mismo objetivo (`ruta`,
+   `proyecto`, `run_id`) y la trazabilidad validación → priorización → remediación.
+   Código 0 = consistente; 2 = corrige lo que liste `ERROR:` antes del informe. `gaps.json`
+   es opcional (aviso, no error).
+9. Genera el informe.
 
 ## Informe (`$RUN/informe.md`)
 - Ruta analizada, fecha, pasos ejecutados y omitidos.

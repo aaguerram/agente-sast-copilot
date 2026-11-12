@@ -1,0 +1,290 @@
+{
+ "descripcion": "Índice CWE → OWASP Cheat Sheet Series para la referencia del remediador (paso 8). Si un CWE no está, se usa el de su padre en cwe-owasp.json; DotNet_Security es la referencia general para C#/.NET.",
+ "fuente": "https://cheatsheetseries.owasp.org/",
+ "licencia": "OWASP Cheat Sheet Series, CC BY-SA 4.0",
+ "general": "DotNet_Security",
+ "hojas": {
+  "Access_Control": "https://cheatsheetseries.owasp.org/cheatsheets/Access_Control_Cheat_Sheet.html",
+  "Authentication": "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html",
+  "Authorization": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+  "Business_Logic_Security": "https://cheatsheetseries.owasp.org/cheatsheets/Business_Logic_Security_Cheat_Sheet.html",
+  "Clickjacking_Defense": "https://cheatsheetseries.owasp.org/cheatsheets/Clickjacking_Defense_Cheat_Sheet.html",
+  "Content_Security_Policy": "https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html",
+  "Cookie_Theft_Mitigation": "https://cheatsheetseries.owasp.org/cheatsheets/Cookie_Theft_Mitigation_Cheat_Sheet.html",
+  "Credential_Stuffing_Prevention": "https://cheatsheetseries.owasp.org/cheatsheets/Credential_Stuffing_Prevention_Cheat_Sheet.html",
+  "Cross-Site_Request_Forgery_Prevention": "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html",
+  "Cross_Site_Scripting_Prevention": "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+  "Cryptographic_Storage": "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
+  "DOM_based_XSS_Prevention": "https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html",
+  "Denial_of_Service": "https://cheatsheetseries.owasp.org/cheatsheets/Denial_of_Service_Cheat_Sheet.html",
+  "Deserialization": "https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html",
+  "DotNet_Security": "https://cheatsheetseries.owasp.org/cheatsheets/DotNet_Security_Cheat_Sheet.html",
+  "Error_Handling": "https://cheatsheetseries.owasp.org/cheatsheets/Error_Handling_Cheat_Sheet.html",
+  "File_Upload": "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html",
+  "Forgot_Password": "https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html",
+  "HTTP_Headers": "https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html",
+  "HTTP_Strict_Transport_Security": "https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Strict_Transport_Security_Cheat_Sheet.html",
+  "Injection_Prevention": "https://cheatsheetseries.owasp.org/cheatsheets/Injection_Prevention_Cheat_Sheet.html",
+  "Input_Validation": "https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html",
+  "Insecure_Direct_Object_Reference_Prevention": "https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html",
+  "JSON_Web_Token": "https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_Cheat_Sheet.html",
+  "Key_Management": "https://cheatsheetseries.owasp.org/cheatsheets/Key_Management_Cheat_Sheet.html",
+  "LDAP_Injection_Prevention": "https://cheatsheetseries.owasp.org/cheatsheets/LDAP_Injection_Prevention_Cheat_Sheet.html",
+  "Logging": "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html",
+  "Logging_Vocabulary": "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Vocabulary_Cheat_Sheet.html",
+  "Mass_Assignment": "https://cheatsheetseries.owasp.org/cheatsheets/Mass_Assignment_Cheat_Sheet.html",
+  "Multifactor_Authentication": "https://cheatsheetseries.owasp.org/cheatsheets/Multifactor_Authentication_Cheat_Sheet.html",
+  "NoSQL_Security": "https://cheatsheetseries.owasp.org/cheatsheets/NoSQL_Security_Cheat_Sheet.html",
+  "OS_Command_Injection_Defense": "https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html",
+  "Password_Storage": "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html",
+  "Pinning": "https://cheatsheetseries.owasp.org/cheatsheets/Pinning_Cheat_Sheet.html",
+  "Query_Parameterization": "https://cheatsheetseries.owasp.org/cheatsheets/Query_Parameterization_Cheat_Sheet.html",
+  "REST_Security": "https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html",
+  "SQL_Injection_Prevention": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+  "Secrets_Management": "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html",
+  "Server_Side_Request_Forgery_Prevention": "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html",
+  "Server_Side_Template_Injection_Prevention": "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Template_Injection_Prevention_Cheat_Sheet.html",
+  "Session_Management": "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
+  "Transaction_Authorization": "https://cheatsheetseries.owasp.org/cheatsheets/Transaction_Authorization_Cheat_Sheet.html",
+  "Transport_Layer_Security": "https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html",
+  "Unvalidated_Redirects_and_Forwards": "https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html",
+  "User_Privacy_Protection": "https://cheatsheetseries.owasp.org/cheatsheets/User_Privacy_Protection_Cheat_Sheet.html",
+  "Vulnerable_Dependency_Management": "https://cheatsheetseries.owasp.org/cheatsheets/Vulnerable_Dependency_Management_Cheat_Sheet.html",
+  "XML_External_Entity_Prevention": "https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html",
+  "XML_Security": "https://cheatsheetseries.owasp.org/cheatsheets/XML_Security_Cheat_Sheet.html",
+  "XPath_Injection_Prevention": "https://cheatsheetseries.owasp.org/cheatsheets/XPath_Injection_Prevention_Cheat_Sheet.html"
+ },
+ "por_cwe": {
+  "CWE-89": [
+   "SQL_Injection_Prevention",
+   "Query_Parameterization",
+   "DotNet_Security"
+  ],
+  "CWE-564": [
+   "SQL_Injection_Prevention",
+   "Query_Parameterization"
+  ],
+  "CWE-943": [
+   "Injection_Prevention",
+   "NoSQL_Security"
+  ],
+  "CWE-74": [
+   "Injection_Prevention"
+  ],
+  "CWE-77": [
+   "OS_Command_Injection_Defense",
+   "Injection_Prevention"
+  ],
+  "CWE-78": [
+   "OS_Command_Injection_Defense",
+   "DotNet_Security"
+  ],
+  "CWE-90": [
+   "LDAP_Injection_Prevention"
+  ],
+  "CWE-643": [
+   "XPath_Injection_Prevention"
+  ],
+  "CWE-79": [
+   "Cross_Site_Scripting_Prevention",
+   "DOM_based_XSS_Prevention",
+   "Content_Security_Policy"
+  ],
+  "CWE-1336": [
+   "Server_Side_Template_Injection_Prevention"
+  ],
+  "CWE-20": [
+   "Input_Validation"
+  ],
+  "CWE-22": [
+   "File_Upload",
+   "Input_Validation",
+   "DotNet_Security"
+  ],
+  "CWE-434": [
+   "File_Upload"
+  ],
+  "CWE-502": [
+   "Deserialization",
+   "DotNet_Security"
+  ],
+  "CWE-611": [
+   "XML_External_Entity_Prevention",
+   "XML_Security"
+  ],
+  "CWE-918": [
+   "Server_Side_Request_Forgery_Prevention"
+  ],
+  "CWE-601": [
+   "Unvalidated_Redirects_and_Forwards",
+   "DotNet_Security"
+  ],
+  "CWE-352": [
+   "Cross-Site_Request_Forgery_Prevention"
+  ],
+  "CWE-1021": [
+   "Clickjacking_Defense"
+  ],
+  "CWE-284": [
+   "Access_Control",
+   "Authorization"
+  ],
+  "CWE-285": [
+   "Authorization"
+  ],
+  "CWE-862": [
+   "Authorization",
+   "Access_Control",
+   "DotNet_Security"
+  ],
+  "CWE-863": [
+   "Authorization",
+   "Access_Control"
+  ],
+  "CWE-639": [
+   "Insecure_Direct_Object_Reference_Prevention",
+   "Authorization"
+  ],
+  "CWE-915": [
+   "Mass_Assignment"
+  ],
+  "CWE-287": [
+   "Authentication",
+   "Multifactor_Authentication"
+  ],
+  "CWE-306": [
+   "Authentication",
+   "Authorization"
+  ],
+  "CWE-307": [
+   "Authentication",
+   "Credential_Stuffing_Prevention"
+  ],
+  "CWE-290": [
+   "Authentication"
+  ],
+  "CWE-640": [
+   "Forgot_Password"
+  ],
+  "CWE-384": [
+   "Session_Management"
+  ],
+  "CWE-614": [
+   "Session_Management",
+   "Cookie_Theft_Mitigation"
+  ],
+  "CWE-1004": [
+   "Session_Management",
+   "Cookie_Theft_Mitigation"
+  ],
+  "CWE-347": [
+   "JSON_Web_Token"
+  ],
+  "CWE-345": [
+   "JSON_Web_Token"
+  ],
+  "CWE-798": [
+   "Secrets_Management"
+  ],
+  "CWE-259": [
+   "Secrets_Management"
+  ],
+  "CWE-321": [
+   "Key_Management",
+   "Secrets_Management"
+  ],
+  "CWE-256": [
+   "Password_Storage"
+  ],
+  "CWE-916": [
+   "Password_Storage"
+  ],
+  "CWE-327": [
+   "Cryptographic_Storage",
+   "DotNet_Security"
+  ],
+  "CWE-328": [
+   "Password_Storage",
+   "Cryptographic_Storage"
+  ],
+  "CWE-326": [
+   "Cryptographic_Storage",
+   "Key_Management"
+  ],
+  "CWE-330": [
+   "Cryptographic_Storage"
+  ],
+  "CWE-338": [
+   "Cryptographic_Storage"
+  ],
+  "CWE-311": [
+   "Cryptographic_Storage",
+   "Transport_Layer_Security"
+  ],
+  "CWE-312": [
+   "Cryptographic_Storage"
+  ],
+  "CWE-319": [
+   "Transport_Layer_Security",
+   "HTTP_Strict_Transport_Security"
+  ],
+  "CWE-295": [
+   "Transport_Layer_Security",
+   "Pinning"
+  ],
+  "CWE-532": [
+   "Logging",
+   "Logging_Vocabulary"
+  ],
+  "CWE-117": [
+   "Logging"
+  ],
+  "CWE-778": [
+   "Logging",
+   "Logging_Vocabulary"
+  ],
+  "CWE-209": [
+   "Error_Handling"
+  ],
+  "CWE-200": [
+   "Error_Handling",
+   "User_Privacy_Protection"
+  ],
+  "CWE-16": [
+   "HTTP_Headers",
+   "DotNet_Security"
+  ],
+  "CWE-693": [
+   "HTTP_Headers",
+   "Content_Security_Policy"
+  ],
+  "CWE-942": [
+   "HTTP_Headers",
+   "REST_Security"
+  ],
+  "CWE-770": [
+   "Denial_of_Service"
+  ],
+  "CWE-400": [
+   "Denial_of_Service"
+  ],
+  "CWE-1333": [
+   "Denial_of_Service",
+   "Input_Validation"
+  ],
+  "CWE-840": [
+   "Business_Logic_Security",
+   "Transaction_Authorization"
+  ],
+  "CWE-841": [
+   "Business_Logic_Security",
+   "Transaction_Authorization"
+  ],
+  "CWE-1104": [
+   "Vulnerable_Dependency_Management"
+  ],
+  "CWE-1395": [
+   "Vulnerable_Dependency_Management"
+  ]
+ }
+}

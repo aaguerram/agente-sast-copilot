@@ -91,6 +91,7 @@ Code y remiten a la skill del mismo nombre: hacen exactamente lo mismo.
 | `validar [--solo a,b \| --saltar x \| --listar]` | `./scripts/validar-local.sh` (`.ps1`: `-Solo`, `-Saltar`, `-Listar`) |
 | `rapido` | `./scripts/validar-local.sh --saltar sonarqube` |
 | `demo [ruta]` / `objetivo <ruta>` | `metodologia.py todo` + servicio `semgrep-objetivo` + `comparar_esperado.py` |
+| `dotnet [ruta]` | Servicio `dotnet-objetivo` (analizadores de seguridad .NET) + `normalizar_sarif.py` → `salida/reportes/dotnet-normalizado.json` |
 | `comparar` | `agente-sast-g7/scripts/comparar_esperado.py` |
 | `ado-login` | `./scripts/ado.sh az login --use-device-code` |
 | `replicar <org> <proy> [--real]` | `./scripts/ado.sh ./scripts/ado-bootstrap.sh … [--dry-run]` |
@@ -308,6 +309,16 @@ los comandos la usan si no indicas ruta.
     (rutas relativas a la raíz del repo) y `salida/reportes/metodologia/candidatos-*.json`.
     Equivale a `OBJETIVO=objetivos/mi-proyecto docker compose --profile seguridad run --rm semgrep-objetivo`
     más `metodologia.py todo`.
+
+    Opcional, tercera fuente SARIF (si el proyecto compila): analizadores de seguridad .NET
+    (`CA2100`, `CA3001`–`CA3012`, `CA2300`–`CA2330`, `CA5350`–`CA5403`), con CWE y OWASP
+    completados desde la base de conocimiento:
+
+    ```bash
+    ./scripts/agente.sh dotnet objetivos/mi-proyecto        # PowerShell: ./scripts/agente.ps1 dotnet ...
+    ```
+
+    Genera `salida/reportes/dotnet-objetivo/*.sarif` y `salida/reportes/dotnet-normalizado.json`.
 
 4. En el chat:
 

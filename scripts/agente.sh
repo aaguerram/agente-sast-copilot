@@ -7,6 +7,7 @@
 #   ./scripts/agente.sh rapido              # todas las fases menos SonarQube
 #   ./scripts/agente.sh validar             # todas las fases (acepta --solo/--saltar/--listar)
 #   ./scripts/agente.sh objetivo objetivos/mi-proyecto
+#   ./scripts/agente.sh dotnet objetivos/mi-proyecto   # analizadores .NET (3.ª fuente SARIF)
 #   ./scripts/agente.sh comparar            # resultados actuales vs. respuesta de referencia
 #   ./scripts/agente.sh ado-login
 #   ./scripts/agente.sh replicar https://dev.azure.com/ORG PROYECTO          # simulacro
@@ -22,6 +23,9 @@
 #                         Semgrep sobre la ruta (def. agente-sast-g7/samples/app-vulnerable),
 #                         y comparación con la referencia esperado/.
 #   objetivo <ruta>       Lo mismo que demo sobre un proyecto real (p. ej. objetivos/<p>).
+#   dotnet [ruta]         Analizadores de seguridad .NET (CA2100, CA3001-CA3012, CA5350…)
+#                         sobre la ruta: compila cada .csproj y normaliza el SARIF con
+#                         CWE/OWASP de la KB (def. agente-sast-g7/samples/app-vulnerable).
 #   comparar              Compara salida/reportes/metodologia/ con la referencia.
 #   ado-login             az login --use-device-code (Azure CLI en contenedor).
 #   replicar <org> <proy> [--real]
@@ -39,7 +43,7 @@ MUESTRA="agente-sast-g7/samples/app-vulnerable"
 export UID
 GID="$(id -g)"; export GID
 
-uso() { sed -n '2,33p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+uso() { sed -n '2,37p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
 py() { # py <script.py> [args] -> Python del contenedor "py" (no se instala nada)
   local tty=(); [ -t 0 ] && [ -t 1 ] || tty=(-T)
@@ -74,6 +78,17 @@ Siguiente paso, en VS Code con Copilot Chat:
 EOF
 }
 
+analizar_dotnet() { # analizar_dotnet <ruta>: analizadores .NET + normalización
+  local ruta; ruta="$(ruta_relativa "$1")"
+  mkdir -p salida/reportes
+  echo ">> 1/2 Analizadores de seguridad .NET sobre $ruta (dotnet build en contenedor)"
+  OBJETIVO="$ruta" docker compose --profile seguridad run --rm -T dotnet-objetivo
+  echo ">> 2/2 Normalización (CWE/OWASP desde agente-sast-g7/kb/)"
+  py agente-sast-g7/scripts/normalizar_sarif.py salida/reportes/dotnet-objetivo/*.sarif \
+    --base /tmp/src --prefijo "$ruta" -o salida/reportes/dotnet-normalizado.json
+  echo "Siguiente paso, en Copilot Chat: /sast salida/reportes/dotnet-normalizado.json"
+}
+
 cmd="${1:-ayuda}"; [ $# -gt 0 ] && shift
 case "$cmd" in
   ayuda|help|-h|--help) uso 0 ;;
@@ -83,6 +98,7 @@ case "$cmd" in
   objetivo)
     [ $# -ge 1 ] || { echo "Uso: ./scripts/agente.sh objetivo objetivos/<proyecto>" >&2; exit 1; }
     analizar "$1" ;;
+  dotnet) analizar_dotnet "${1:-$MUESTRA}" ;;
   comparar) py agente-sast-g7/scripts/comparar_esperado.py "$@" ;;
   ado-login) exec bash scripts/ado.sh az login --use-device-code ;;
   replicar)

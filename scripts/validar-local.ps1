@@ -109,6 +109,7 @@ $Fases = [ordered]@{
     }
     'metodologia'  = {
         Invoke-Dc --profile agentes run --rm -T py agente-sast-g7/scripts/tests/test_metodologia.py
+        Invoke-Dc --profile agentes run --rm -T py agente-sast-g7/scripts/tests/test_kb.py
         Invoke-Dc --profile agentes run --rm -T py agente-sast-g7/scripts/metodologia.py todo `
             agente-sast-g7/samples/app-vulnerable --dir salida/reportes/metodologia
     }

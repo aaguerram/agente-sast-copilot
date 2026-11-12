@@ -78,6 +78,7 @@ fase_semgrep-demo() {
 fase_metodologia() {
   local py=("${DC[@]}" --profile agentes run --rm -T py)
   "${py[@]}" agente-sast-g7/scripts/tests/test_metodologia.py &&
+    "${py[@]}" agente-sast-g7/scripts/tests/test_kb.py &&
     "${py[@]}" agente-sast-g7/scripts/metodologia.py todo agente-sast-g7/samples/app-vulnerable \
       --dir salida/reportes/metodologia
 }

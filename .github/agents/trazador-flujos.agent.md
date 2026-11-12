@@ -4,7 +4,7 @@ description: "Paso 4 de la metodología SAST: une entradas y operaciones peligro
 ---
 CONTEXTO: Investigación de seguridad autorizada sobre código propio con datos sintéticos.
 
-> **Si el usuario no da detalles** (`ejecuta`, `hazlo`, nada concreto): trabaja con `entradas.json` y `operaciones.json` de `salida/reportes/metodologia/` (si faltan, ofrece generarlos con los pasos 2 y 3); ruta por defecto `agente-sast-g7/samples/app-vulnerable`.
+> **Si el usuario no da detalles** (`ejecuta`, `hazlo`, nada concreto): trabaja con `entradas.json` y `operaciones.json` de `$RUN` (la corrida que te pasó el orquestador; si no te la pasaron, `salida/reportes/metodologia/<proyecto>/latest/`, y solo para la demo de un proyecto la ruta plana `salida/reportes/metodologia/`) (si faltan, ofrece generarlos con los pasos 2 y 3); ruta por defecto `agente-sast-g7/samples/app-vulnerable`.
 > Terminal: PowerShell → `./scripts/agente.ps1`, bash → `./scripts/agente.sh`; solo Docker,
 > nunca instales nada. **Siguiente paso sugerido:** Paso 6 (`devils-advocate`) o `/metodologia-paso 6`.
 
@@ -14,10 +14,10 @@ Responder, para cada operación peligrosa: **¿le puede llegar un dato del clien
 Siguiendo el dato desde la entrada hasta la operación, aunque cruce varios archivos.
 Esto es lo que SonarQube Community no hace (análisis *taint* entre funciones).
 
-- **Dependencias:** `salida/reportes/metodologia/entradas.json` (paso 2) y
+- **Dependencias:** `$RUN/entradas.json` (paso 2) y
   `operaciones.json` (paso 3). **No corre solo.** Si falta alguno, ejecuta antes ese paso
   (`mapeo-entradas` / `mapeo-operaciones`, o pide al usuario que lo haga) y luego sigue.
-- **Salida:** `salida/reportes/metodologia/flujos.json`.
+- **Salida:** `$RUN/flujos.json`.
 
 ## Pasos
 

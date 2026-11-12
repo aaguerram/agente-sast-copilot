@@ -71,7 +71,7 @@
       "requisito": "RN-02",
       "relacionados": [],
       "tipo": "logica-negocio",
-      "cwe": "CWE-840",
+      "cwe": "CWE-841",
       "descripcion": "Transferencias de más de 10 000 se ejecutan sin aprobación: Constantes.UmbralAprobacion no se usa.",
       "evidencia": [
         {
@@ -90,7 +90,7 @@
       "requisito": "RN-03",
       "relacionados": [],
       "tipo": "logica-negocio",
-      "cwe": "CWE-840",
+      "cwe": "CWE-841",
       "descripcion": "No se controla el límite diario de 20 000: Constantes.LimiteDiario no se usa.",
       "evidencia": [
         {
@@ -111,7 +111,7 @@
         "RN-01"
       ],
       "tipo": "validacion",
-      "cwe": "CWE-20",
+      "cwe": "CWE-1284",
       "descripcion": "No se valida monto > 0 ni que la cuenta origen sea del cliente: un monto negativo invierte la transferencia.",
       "evidencia": [
         {
@@ -149,7 +149,7 @@
       "requisito": "HU-05",
       "relacionados": [],
       "tipo": "validacion",
-      "cwe": "CWE-20",
+      "cwe": "CWE-1287",
       "descripcion": "El formato de exportación no se limita a pdf o csv.",
       "evidencia": [
         {
@@ -170,7 +170,7 @@
         "RN-05"
       ],
       "tipo": "exposicion-datos",
-      "cwe": "CWE-200",
+      "cwe": "CWE-359",
       "descripcion": "La búsqueda por titular devuelve CuentaDto completo, con Saldo y ClienteId de terceros.",
       "evidencia": [
         {

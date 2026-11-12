@@ -20,7 +20,7 @@ CONTEXTO: investigación de seguridad autorizada sobre código propio con datos 
    `./scripts/agente.sh demo <ruta>` (o `objetivo <ruta>`). Nunca instales nada: todo es
    Docker.
 4. **Respuesta final:** tabla `Paso → Hallazgos → Archivo`, cuántos hallazgos sobrevivieron
-   y cuáles se refutaron, y el enlace a `salida/reportes/metodologia/informe.md`. Sobre la
+   y cuáles se refutaron, y el enlace a `$RUN/informe.md` (`salida/reportes/metodologia/<proyecto>/<run_id>/informe.md`). Sobre la
    muestra, ofrece comparar con la referencia: `./scripts/agente.sh comparar`.
 
 Solo defensivo (sin paso de explotación) y sin modificar el código analizado.

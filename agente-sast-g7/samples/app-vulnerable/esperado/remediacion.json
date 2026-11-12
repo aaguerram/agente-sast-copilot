@@ -64,7 +64,7 @@
       "ubicacion": "Models/Dtos.cs:6",
       "recomendacion": "Validar con DataAnnotations y rechazar valores fuera del dominio.",
       "codigo_ejemplo": "public record TransferenciaDto(int CuentaOrigenId, string CuentaDestino, [property: Range(0.01, 1_000_000)] decimal Monto, [property: StringLength(140)] string Concepto);",
-      "referencia": "CWE-20 · OWASP Input Validation Cheat Sheet"
+      "referencia": "CWE-1284 · OWASP Input Validation Cheat Sheet"
     },
     {
       "id_hallazgo": "F-04",
@@ -104,7 +104,7 @@
       "ubicacion": "Services/TransferenciaService.cs:24",
       "recomendacion": "Aplicar la regla en el servicio antes de registrar.",
       "codigo_ejemplo": "if (dto.Monto > Constantes.UmbralAprobacion) return _repo.RegistrarPendienteAprobacion(...);\nif (_repo.TotalDelDia(clienteId) + dto.Monto > Constantes.LimiteDiario) throw new LimiteDiarioExcedidoException();",
-      "referencia": "CWE-840 · OWASP ASVS V2 (lógica de negocio)"
+      "referencia": "CWE-841 · OWASP ASVS V2 (lógica de negocio)"
     },
     {
       "id_hallazgo": "G-05",
@@ -112,7 +112,7 @@
       "ubicacion": "Services/TransferenciaService.cs:24",
       "recomendacion": "Aplicar la regla en el servicio antes de registrar.",
       "codigo_ejemplo": "if (dto.Monto > Constantes.UmbralAprobacion) return _repo.RegistrarPendienteAprobacion(...);\nif (_repo.TotalDelDia(clienteId) + dto.Monto > Constantes.LimiteDiario) throw new LimiteDiarioExcedidoException();",
-      "referencia": "CWE-840 · OWASP ASVS V2 (lógica de negocio)"
+      "referencia": "CWE-841 · OWASP ASVS V2 (lógica de negocio)"
     },
     {
       "id_hallazgo": "G-09",
@@ -120,7 +120,7 @@
       "ubicacion": "Controllers/CuentasController.cs:27",
       "recomendacion": "Devolver un DTO de búsqueda sin Saldo ni ClienteId.",
       "codigo_ejemplo": "public record CuentaBusquedaDto(string Titular, string NumeroEnmascarado);",
-      "referencia": "CWE-200 · OWASP API3:2023 Broken Object Property Level Authorization"
+      "referencia": "CWE-359 · OWASP API3:2023 Broken Object Property Level Authorization"
     },
     {
       "id_hallazgo": "G-10",
@@ -160,7 +160,7 @@
       "ubicacion": "Controllers/ReportesController.cs:19",
       "recomendacion": "Validar con DataAnnotations y rechazar valores fuera del dominio.",
       "codigo_ejemplo": "public record TransferenciaDto(int CuentaOrigenId, string CuentaDestino, [property: Range(0.01, 1_000_000)] decimal Monto, [property: StringLength(140)] string Concepto);",
-      "referencia": "CWE-20 · OWASP Input Validation Cheat Sheet"
+      "referencia": "CWE-1287 · OWASP Input Validation Cheat Sheet"
     }
   ]
 }

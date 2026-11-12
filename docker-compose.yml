@@ -173,6 +173,7 @@ services:
     volumes:
       - ./${OBJETIVO:-agente-sast-g7/samples/app-vulnerable}:/objetivo:ro
       - ./agente-sast-g7/scripts:/scripts:ro
+      - ./agente-sast-g7/kb:/kb:ro   # CWE → OWASP para normalizar_sarif.py (kb.py busca ../kb)
       - ${SALIDA_DIR:-./salida}/reportes:/reportes
     entrypoint: ["/bin/sh", "-c"]
     command:
@@ -182,6 +183,45 @@ services:
         python3 /scripts/normalizar_sarif.py /reportes/semgrep-objetivo.sarif
         --prefijo "$$OBJETIVO" -o /reportes/objetivo-normalizado.json &&
         echo ">> $$OBJETIVO: salida/reportes/semgrep-objetivo.sarif y objetivo-normalizado.json"
+
+  # Analizadores de seguridad de .NET (Microsoft.CodeAnalysis.NetAnalyzers, incluidos en el
+  # SDK): tercera fuente SARIF junto a Semgrep y SonarQube. Compila cada .csproj del objetivo
+  # con todas las reglas de la categoría Security como avisos (CA2100, CA3001-CA3012,
+  # CA2300-CA2330, CA5350-CA5403…) y deja un SARIF 2.1 por proyecto en
+  # salida/reportes/dotnet-objetivo/. Necesita que el objetivo compile (restaura NuGet).
+  # La normalización (con CWE/OWASP desde la KB) la hace ./scripts/agente.sh dotnet <ruta>.
+  #   OBJETIVO=objetivos/mi-proyecto docker compose --profile seguridad run --rm dotnet-objetivo
+  dotnet-objetivo:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    profiles: ["seguridad"]
+    user: *user
+    environment:
+      HOME: /tmp
+      DOTNET_CLI_HOME: /tmp
+      DOTNET_NOLOGO: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      NUGET_PACKAGES: /tmp/nuget   # efímero: un volumen del host lo crearía Docker como root
+      OBJETIVO: ${OBJETIVO:-agente-sast-g7/samples/app-vulnerable}
+    volumes:
+      - ./${OBJETIVO:-agente-sast-g7/samples/app-vulnerable}:/objetivo:ro
+      - ${SALIDA_DIR:-./salida}/reportes:/reportes
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - >-
+        set -u; rm -rf /tmp/src /reportes/dotnet-objetivo &&
+        mkdir -p /reportes/dotnet-objetivo && cp -r /objetivo /tmp/src &&
+        find /tmp/src \( -name bin -o -name obj \) -type d -prune -exec rm -rf {} + ;
+        n=0; fallos=0;
+        while IFS= read -r proj; do
+        n=$$((n+1)); nombre=$$(basename "$$proj" .csproj);
+        echo ">> dotnet build $${proj#/tmp/src/}";
+        dotnet build "$$proj" -nologo -v:quiet -p:EnableNETAnalyzers=true
+        -p:AnalysisModeSecurity=All -p:TreatWarningsAsErrors=false
+        "-p:ErrorLog=/reportes/dotnet-objetivo/$$n-$$nombre.sarif%2Cversion=2.1" || fallos=$$((fallos+1));
+        done < <(find /tmp/src -name '*.csproj' -not -path '*/bin/*' -not -path '*/obj/*' | sort);
+        [ "$$n" -gt 0 ] || { echo "ERROR: $$OBJETIVO no tiene ningún .csproj"; exit 1; };
+        echo ">> $$n proyecto(s), $$fallos sin compilar; SARIF en salida/reportes/dotnet-objetivo/";
+        [ "$$fallos" -lt "$$n" ]
 
   # Ejecuta scripts/sonar-analizar.sh (SonarQube efímero + SDK .NET en contenedores).
   # Lanza contenedores hermanos por el socket de Docker. Funciona igual en Linux y en

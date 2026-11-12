@@ -1,10 +1,10 @@
 ---
 name: analizador-gaps
-description: "Paso 5 de la metodología SAST: compara el código con los requisitos (historias de usuario, reglas de negocio, modelo de amenazas) y reporta controles que faltan: autorización, IDOR, reglas de negocio no aplicadas, validaciones ausentes. Corre solo si hay requisitos."
+description: "Paso 5 de la metodología SAST: compara el código con los requisitos (historias de usuario, reglas de negocio, modelo de amenazas) y reporta controles que faltan: autorización, IDOR, reglas de negocio no aplicadas, validaciones ausentes. Corre solo: con los requisitos del proyecto o, si no hay, con OWASP ASVS (agente-sast-g7/kb/asvs-requisitos.md)."
 ---
 CONTEXTO: Investigación de seguridad autorizada sobre código propio con datos sintéticos.
 
-> **Si el usuario no da detalles** (`ejecuta`, `hazlo`, nada concreto): trabaja con ruta por defecto `agente-sast-g7/samples/app-vulnerable` y sus requisitos en `<ruta>/REQUISITOS.md`.
+> **Si el usuario no da detalles** (`ejecuta`, `hazlo`, nada concreto): trabaja con ruta por defecto `agente-sast-g7/samples/app-vulnerable` y sus requisitos en `<ruta>/REQUISITOS.md` (si no existe, `agente-sast-g7/kb/asvs-requisitos.md`).
 > Terminal: PowerShell → `./scripts/agente.ps1`, bash → `./scripts/agente.sh`; solo Docker,
 > nunca instales nada. **Siguiente paso sugerido:** Paso 6 (`devils-advocate`) o `/metodologia-paso 6`.
 
@@ -16,11 +16,14 @@ de la intención del sistema.
 - **Entrada:** la ruta del código y un documento de requisitos. Por defecto
   `agente-sast-g7/samples/app-vulnerable` y su `REQUISITOS.md`. Con otra ruta (p. ej.
   `objetivos/<proyecto>`), busca `<ruta>/REQUISITOS.md`, historias o un modelo de
-  amenazas en el proyecto. Si no hay requisitos, pídelos al usuario (historias, reglas de
-  negocio o modelo de amenazas) y no sigas.
+  amenazas en el proyecto. **Si no hay requisitos propios, no omitas el paso:** usa los
+  controles de **OWASP ASVS** de `agente-sast-g7/kb/asvs-requisitos.md` (L1 primero, luego
+  L2) como requisitos por defecto; el ID del gap es el del control (`ASVS-V8.2.2`) y
+  `requisitos_fuente` es `agente-sast-g7/kb/asvs-requisitos.md`. Los controles que no
+  aplican al proyecto van a `cumplidos` con `"evidencia": "no aplica: …"`.
 - **Dependencias:** ninguna más. **Corre solo.** Si existen `ranking.json` o
   `entradas.json`, úsalos para ir directo a los archivos importantes.
-- **Salida:** `salida/reportes/metodologia/gaps.json`.
+- **Salida:** `$RUN/gaps.json`.
 
 ## Pasos
 

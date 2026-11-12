@@ -29,7 +29,7 @@ Si no se reconoce el paso, muestra la tabla y pregunta **una sola vez** cuál ej
 
 ## 2. Ejecuta
 Lee `.github/agents/metodologia-sast.agent.md` y sigue su **Modo 2 (un paso puntual)**:
-- Pasos 1, 2, 3 y 5 corren solos (el 5 necesita requisitos: `<ruta>/REQUISITOS.md`).
+- Pasos 1, 2, 3 y 5 corren solos (el 5 usa `<ruta>/REQUISITOS.md` o, si no hay, OWASP ASVS de `agente-sast-g7/kb/asvs-requisitos.md`).
 - Pasos 4, 6, 7 y 8 dependen de otros: si faltan sus JSON en `salida/reportes/metodologia/`
   (o son de otra ruta), dilo y ofrece generar antes **solo lo que falta**.
 - Para ejecutar el paso, lee `.github/agents/<agente>.agent.md` y aplícalo (o delega en ese

@@ -124,3 +124,19 @@ referencia: `agente-sast-g7/samples/app-vulnerable/` y su carpeta `esperado/`.
 | `note` | Baja | Baja | No |
 
 Ajustar este mapeo si el banco define otra escala.
+
+## Base de conocimiento (CWE, OWASP, criticidad, requisitos)
+
+Versionada en `agente-sast-g7/kb/` y explicada en `docs/criterios-riesgo.md`; funciona sin red.
+
+- `kb/cwe-owasp.json`: catálogo oficial MITRE CWE con su categoría OWASP Top 10 2021 (vista
+  CWE-1344). El agente elige el CWE; **el OWASP sale de la KB**, no del modelo. Consulta:
+  `docker compose --profile agentes run --rm py agente-sast-g7/scripts/kb.py CWE-89`.
+- Criticidad de flujos y gaps: matriz probabilidad × impacto de `docs/criterios-riesgo.md`
+  (OWASP Risk Rating adaptada a banca). Falsos positivos y saneamiento válido en C#/.NET:
+  misma página.
+- `kb/asvs-requisitos.md`: OWASP ASVS 5.0.0 (L1/L2), requisitos por defecto del paso 5
+  cuando el objetivo no trae `REQUISITOS.md`.
+- `kb/cheatsheets.json`: CWE → OWASP Cheat Sheet para la `referencia` del remediador.
+- Tercera fuente SARIF: analizadores de seguridad .NET (`./scripts/agente.sh dotnet <ruta>`
+  → `salida/reportes/dotnet-normalizado.json`).

@@ -778,6 +778,118 @@ def _registrar_run(raiz: Path, dir_run: Path, meta: dict, docs: dict) -> None:
     print(f">> run {meta['run_id']} registrado en {dir_proy}", file=sys.stderr)
 
 
+# ---------------------------------------------------------------- validar corrida
+
+# Paso → (archivo, clave de la lista, obligatorio)
+SALIDAS_PASOS = [
+    ("ranking-archivos", "ranking.json", "archivos", True),
+    ("mapeo-entradas", "entradas.json", "entradas", True),
+    ("mapeo-operaciones", "operaciones.json", "operaciones", True),
+    ("trazador-flujos", "flujos.json", "flujos", True),
+    ("analizador-gaps", "gaps.json", "gaps", False),  # se omite si no hay requisitos
+    ("devils-advocate", "validacion.json", "veredictos", True),
+    ("priorizador-cwe-owasp", "priorizacion.json", "hallazgos", True),
+    ("remediador", "remediacion.json", "recomendaciones", True),
+]
+
+
+def validar_corrida(dir_run: Path) -> tuple[list[str], list[str], list[dict]]:
+    """Comprueba en un solo paso los JSON de una corrida: existen, se leen, tienen la lista
+    esperada, son del mismo objetivo (ruta/proyecto/run_id) y la trazabilidad de ids
+    (validación → priorización → remediación). Devuelve (errores, avisos, resumen)."""
+    errores: list[str] = []
+    avisos: list[str] = []
+    resumen: list[dict] = []
+    docs: dict[str, dict] = {}
+    for paso, nombre, clave, obligatorio in SALIDAS_PASOS:
+        f = dir_run / nombre
+        if not f.exists():
+            (errores if obligatorio else avisos).append(f"falta {nombre} ({paso})")
+            resumen.append({"paso": paso, "archivo": nombre, "estado": "falta", "items": 0})
+            continue
+        try:
+            doc = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as e:
+            errores.append(f"{nombre}: JSON ilegible ({e})")
+            resumen.append({"paso": paso, "archivo": nombre, "estado": "ilegible", "items": 0})
+            continue
+        if not isinstance(doc, dict) or not isinstance(doc.get(clave), list):
+            errores.append(f"{nombre}: falta la lista '{clave}'")
+            resumen.append({"paso": paso, "archivo": nombre, "estado": "sin-lista", "items": 0})
+            continue
+        docs[nombre] = doc
+        resumen.append({"paso": paso, "archivo": nombre, "estado": "ok", "items": len(doc[clave])})
+
+    # Mismo objetivo: cada campo de identidad presente debe coincidir en todos los JSON.
+    for campo in ("ruta", "proyecto", "run_id"):
+        valores = {n: d[campo] for n, d in docs.items() if d.get(campo)}
+        distintos = set(valores.values())
+        if len(distintos) > 1:
+            errores.append(f"'{campo}' no coincide: " + ", ".join(f"{n}={v}" for n, v in valores.items()))
+        elif docs and len(valores) < len(docs) and campo != "ruta":
+            sin = sorted(set(docs) - set(valores))
+            avisos.append(f"sin '{campo}' en: {', '.join(sin)}")
+
+    # Trazabilidad de ids.
+    origen = {x.get("id") for n, clave in (("flujos.json", "flujos"), ("gaps.json", "gaps"))
+              if n in docs for x in docs[n][clave]}
+    if "validacion.json" in docs:
+        vers = docs["validacion.json"]["veredictos"]
+        huerfanos = sorted({v.get("id_hallazgo") for v in vers} - origen - {None})
+        if origen and huerfanos:
+            errores.append(f"validacion.json cita ids que no están en flujos/gaps: {huerfanos}")
+        vivos = {v.get("id_hallazgo") for v in vers if v.get("veredicto") == "sobrevive"}
+        if "priorizacion.json" in docs:
+            prio = {h.get("id_hallazgo") for h in docs["priorizacion.json"]["hallazgos"]}
+            if prio - vivos:
+                errores.append(f"priorizacion.json incluye ids no sobrevivientes: {sorted(prio - vivos)}")
+            if vivos - prio:
+                avisos.append(f"sobrevivientes sin priorizar: {sorted(vivos - prio)}")
+            if "remediacion.json" in docs:
+                rem = {r.get("id_hallazgo") for r in docs["remediacion.json"]["recomendaciones"]}
+                if rem - prio:
+                    errores.append(f"remediacion.json incluye ids no priorizados: {sorted(rem - prio)}")
+                if prio - rem:
+                    avisos.append(f"priorizados sin remediación: {sorted(prio - rem)}")
+
+    if "priorizacion.json" in docs:
+        e2, a2 = validar_cwe_owasp(docs["priorizacion.json"]["hallazgos"])
+        errores += e2
+        avisos += a2
+    return errores, avisos, resumen
+
+
+def validar_cwe_owasp(hallazgos: list[dict]) -> tuple[list[str], list[str]]:
+    """Contrasta CWE y OWASP de la priorización con la KB (agente-sast-g7/kb/cwe-owasp.json).
+
+    Error: CWE que no existe en el catálogo de MITRE. Aviso: CWE cuyo uso MITRE desaconseja
+    o prohíbe, y OWASP distinto del mapeo oficial directo del CWE."""
+    import kb  # noqa: PLC0415 (solo hace falta al validar)
+    errores: list[str] = []
+    avisos: list[str] = []
+    if not kb.catalogo():
+        return errores, ["KB CWE no disponible: no se contrastan CWE ni OWASP"]
+    for h in hallazgos:
+        hid = h.get("id_hallazgo")
+        cwe = kb.normalizar_cwe(h.get("cwe"))
+        if not cwe:
+            avisos.append(f"{hid}: sin CWE")
+            continue
+        entrada = kb.buscar_cwe(cwe)
+        if entrada is None:
+            errores.append(f"{hid}: {cwe} no existe en el catálogo CWE (kb/cwe-owasp.json)")
+            continue
+        if entrada.get("uso") in ("Discouraged", "Prohibited"):
+            avisos.append(f"{hid}: MITRE marca {cwe} como {entrada['uso']}; usa un CWE más concreto")
+        oficial = entrada.get("owasp_2021") or []
+        oficial = [oficial] if isinstance(oficial, str) else oficial
+        dado = str(h.get("owasp") or "")
+        if oficial and dado[:8] not in {o[:8] for o in oficial}:
+            avisos.append(f"{hid}: OWASP '{dado}' no coincide con el mapeo oficial de {cwe}: "
+                          f"'{' | '.join(oficial)}'")
+    return errores, avisos
+
+
 # ---------------------------------------------------------------- CLI
 
 PASOS = {"inventario": inventario, "entradas": entradas, "operaciones": operaciones}
@@ -812,7 +924,29 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--run-id", help="id de ejecución (por defecto, timestamp + commit del objetivo)")
     s.add_argument("--run", action="store_true",
                    help="escribe en <dir>/<proyecto>/<run_id>/ (sin pisar corridas previas) y actualiza latest/ e índice")
+    s = sub.add_parser("validar", help="comprueba en un comando los 8 JSON de una corrida")
+    s.add_argument("dir_run", help="carpeta $RUN (o salida/reportes/metodologia/<proyecto>/latest)")
+    s.add_argument("--json", action="store_true", help="imprime el resultado como JSON")
     args = ap.parse_args(argv)
+
+    if args.cmd == "validar":
+        dir_run = Path(args.dir_run)
+        if not dir_run.is_dir():
+            print(f"ERROR: no existe {dir_run}", file=sys.stderr)
+            return 1
+        errores, avisos, resumen = validar_corrida(dir_run)
+        if args.json:
+            print(json.dumps({"dir": str(dir_run), "ok": not errores, "errores": errores,
+                              "avisos": avisos, "pasos": resumen}, ensure_ascii=False, indent=2))
+        else:
+            for r in resumen:
+                print(f"{r['estado']:>9}  {r['items']:>4}  {r['archivo']:<18} {r['paso']}")
+            for a in avisos:
+                print(f"AVISO: {a}")
+            for e in errores:
+                print(f"ERROR: {e}")
+            print("OK: corrida consistente" if not errores else f"{len(errores)} error(es)")
+        return 0 if not errores else 2
 
     ruta = Path(args.ruta)
     if not ruta.exists():

@@ -485,7 +485,7 @@ salida, ejemplo real y limitaciones.
 - **Ejemplo real** (`esperado/gaps.json`): una regla de negocio no aplicada.
 
   ```json
-  {"id": "G-04", "requisito": "RN-02", "relacionados": [], "tipo": "logica-negocio", "cwe": "CWE-840",
+  {"id": "G-04", "requisito": "RN-02", "relacionados": [], "tipo": "logica-negocio", "cwe": "CWE-841",
    "descripcion": "Transferencias de más de 10 000 se ejecutan sin aprobación: Constantes.UmbralAprobacion no se usa.",
    "evidencia": [{"archivo": "Services/TransferenciaService.cs", "linea": 24}, {"archivo": "Models/Constantes.cs", "linea": 7}],
    "estado": "candidato"}
@@ -630,7 +630,7 @@ salida, ejemplo real y limitaciones.
    "ubicacion": "Services/TransferenciaService.cs:24",
    "recomendacion": "Aplicar la regla en el servicio antes de registrar.",
    "codigo_ejemplo": "if (dto.Monto > Constantes.UmbralAprobacion) return _repo.RegistrarPendienteAprobacion(...);\nif (_repo.TotalDelDia(clienteId) + dto.Monto > Constantes.LimiteDiario) throw new LimiteDiarioExcedidoException();",
-   "referencia": "CWE-840 · OWASP ASVS V2 (lógica de negocio)"}
+   "referencia": "CWE-841 · OWASP ASVS V2 (lógica de negocio)"}
   ```
 
 ### Informe (`informe.md`)

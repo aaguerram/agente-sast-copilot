@@ -16,6 +16,8 @@
                             Semgrep sobre la ruta (def. agente-sast-g7/samples/app-vulnerable),
                             y comparación con la referencia esperado/.
       objetivo <ruta>       Lo mismo que demo sobre un proyecto real (p. ej. objetivos/<p>).
+      dotnet [ruta]         Analizadores de seguridad .NET (CA2100, CA3001-CA3012, CA5350…):
+                            compila cada .csproj y normaliza el SARIF con CWE/OWASP de la KB.
       comparar              Compara salida/reportes/metodologia/ con la referencia.
       ado-login             az login --use-device-code (Azure CLI en contenedor).
       replicar <org> <proy> [--real]
@@ -55,6 +57,7 @@ Uso: ./scripts/agente.ps1 <subcomando> [opciones]      (bash: ./scripts/agente.s
   rapido                   Todas las fases locales menos SonarQube.
   validar [opciones]       Todas las fases (-Solo a,b | -Saltar x | -Listar).
   objetivo <ruta>          Como demo, sobre un proyecto real: objetivos/<proyecto>.
+  dotnet [ruta]            Analizadores de seguridad .NET (3.ª fuente SARIF) + normalización.
   comparar                 Resultados actuales vs. respuesta de referencia.
   ado-login                az login --use-device-code (Azure CLI en contenedor).
   replicar <org> <proy> [--real]
@@ -120,6 +123,26 @@ Siguiente paso, en VS Code con Copilot Chat:
 "@
 }
 
+function Invoke-AnalisisDotnet {
+    param([string]$Ruta)
+    $r = Resolve-RutaRelativa $Ruta
+    Test-Prerequisito
+    Initialize-EntornoHost
+    New-Item -ItemType Directory -Force -Path 'salida/reportes' | Out-Null
+    Write-Host ">> 1/2 Analizadores de seguridad .NET sobre $r (dotnet build en contenedor)"
+    $env:OBJETIVO = $r
+    try {
+        & docker compose --profile seguridad run --rm -T dotnet-objetivo
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+    finally { Remove-Item Env:OBJETIVO -ErrorAction SilentlyContinue }
+    Write-Host '>> 2/2 Normalización (CWE/OWASP desde agente-sast-g7/kb/)'
+    $sarifs = @(Get-ChildItem -Path 'salida/reportes/dotnet-objetivo' -Filter '*.sarif' |
+        ForEach-Object { "salida/reportes/dotnet-objetivo/$($_.Name)" })
+    Invoke-Py agente-sast-g7/scripts/normalizar_sarif.py @sarifs --base /tmp/src --prefijo $r -o salida/reportes/dotnet-normalizado.json
+    Write-Host 'Siguiente paso, en Copilot Chat: /sast salida/reportes/dotnet-normalizado.json'
+}
+
 $argumentos = @($args | ForEach-Object { "$_" })
 $cmd = if ($argumentos.Count -gt 0) { $argumentos[0] } else { 'ayuda' }
 $resto = @($argumentos | Select-Object -Skip 1)
@@ -153,6 +176,7 @@ switch ($cmd) {
         Invoke-Analisis $resto[0]
         exit 0
     }
+    'dotnet' { Invoke-AnalisisDotnet ($(if ($resto.Count -ge 1) { $resto[0] } else { $muestra })); exit 0 }
     'comparar' {
         Test-Prerequisito
         Initialize-EntornoHost

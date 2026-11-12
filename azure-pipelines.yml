@@ -122,8 +122,10 @@ jobs:
 
       # Bloqueante: pruebas del apoyo determinista de la metodología SAST (no del código
       # analizado). Informativo: candidatos sobre la app vulnerable para los agentes.
-      - script: python3 agente-sast-g7/scripts/tests/test_metodologia.py
-        displayName: Pruebas de la metodología SAST (metodologia.py)
+      - script: |
+          python3 agente-sast-g7/scripts/tests/test_metodologia.py &&
+            python3 agente-sast-g7/scripts/tests/test_kb.py
+        displayName: Pruebas de la metodología SAST y de la base de conocimiento
         condition: succeededOrFailed()
 
       - script: |
