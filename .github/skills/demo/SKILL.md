@@ -19,10 +19,15 @@ Identifica la terminal: PowerShell (Windows) → `./scripts/agente.ps1`; bash/zs
 macOS) → `./scripts/agente.sh`. Solo hace falta Docker: **nunca instales nada**.
 
 ## Pasos
-1. **Candidatos deterministas y Semgrep** (1-3 min; la primera vez descarga imágenes):
-   `./scripts/agente.sh demo [ruta]` (PowerShell: `./scripts/agente.ps1 demo [ruta]`).
+1. **Candidatos deterministas, Semgrep y analizadores .NET** (menos de 1 min con las imágenes
+   ya cargadas): `./scripts/agente.sh demo [ruta]` (PowerShell: `./scripts/agente.ps1 demo [ruta]`).
    Genera `salida/reportes/metodologia/candidatos-*.json`,
-   `salida/reportes/semgrep-objetivo.sarif` y `salida/reportes/objetivo-normalizado.json`.
+   `salida/reportes/semgrep-objetivo.sarif`, `salida/reportes/objetivo-normalizado.json` y
+   `salida/reportes/dotnet-normalizado.json`.
+   Los analizadores .NET son el único paso que **compila** el proyecto. Si la máquina no
+   tiene internet o el proyecto no compila, añade `--sin-dotnet`
+   (`./scripts/agente.sh demo [ruta] --sin-dotnet`): el análisis usa solo el código fuente y
+   no se genera `dotnet-normalizado.json`.
 2. **Metodología con razonamiento:** lee `.github/agents/metodologia-sast.agent.md` y sigue
    su **Modo 3 (todos los pasos)** sobre la misma ruta, reutilizando los candidatos del
    paso anterior. Delega cada paso en su agente (`ranking-archivos`, `mapeo-entradas`,

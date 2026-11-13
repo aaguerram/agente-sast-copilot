@@ -25,12 +25,12 @@ del repo**.
 
 | # | Paso | Windows (PowerShell 7) | Linux / macOS |
 |---|---|---|---|
-| 1 | (Opcional) Si vas a analizar un proyecto real, clónalo **antes** en `objetivos/` para que sus paquetes NuGet queden en la imagen | `git clone <url> objetivos/mi-proyecto` | igual |
-| 2 | Construir, descargar y guardar **todas** las imágenes | `./scripts/imagenes.ps1 exportar` | `./scripts/imagenes.sh exportar` |
+| 1 | Construir, descargar y guardar **todas** las imágenes | `./scripts/imagenes.ps1 exportar` | `./scripts/imagenes.sh exportar` |
 
 Al terminar queda **un archivo** en la carpeta del repo: `imagenes-sast.tar` (unos 6,5 GB, 10
 imágenes). Se lleva a la otra máquina por **carpeta compartida o USB**, junto con la carpeta
-del repo (incluido `objetivos/` si clonaste un proyecto).
+del repo. Los proyectos a analizar se copian después a `objetivos/` en la máquina destino:
+**no hace falta compilarlos** ni tenerlos al generar el paquete.
 
 Sin los scripts, los comandos equivalentes son:
 
@@ -48,11 +48,15 @@ docker save -o imagenes-sast.tar $(docker compose --profile "*" config --images)
 |---|---|---|---|
 | 1 | Entrar a la carpeta del repo y copiar allí `imagenes-sast.tar` | `cd <carpeta-del-repo>` | igual |
 | 2 | **Cargar** las imágenes y verificar que no falta ninguna | `./scripts/imagenes.ps1 cargar` | `./scripts/imagenes.sh cargar` |
-| 3 | Demo: candidatos de la metodología + Semgrep sobre la app vulnerable | `./scripts/agente.ps1 demo` | `./scripts/agente.sh demo` |
-| 4 | Lo mismo sobre un proyecto real | `./scripts/agente.ps1 objetivo objetivos/mi-proyecto` | `./scripts/agente.sh objetivo objetivos/mi-proyecto` |
-| 5 | Analizadores de seguridad .NET (tercera fuente SARIF) | `./scripts/agente.ps1 dotnet` | `./scripts/agente.sh dotnet` |
-| 6 | Todas las fases de validación del repo | `$env:SIN_INTERNET = "1"; ./scripts/validar-local.ps1` | `SIN_INTERNET=1 ./scripts/validar-local.sh` |
-| 7 | En VS Code (Copilot Chat) | `/demo`, `/metodologia`, `/sast` | igual |
+| 3 | Demo: candidatos de la metodología + Semgrep sobre la app vulnerable, **sin compilar** | `./scripts/agente.ps1 demo --sin-dotnet` | `./scripts/agente.sh demo --sin-dotnet` |
+| 4 | Lo mismo sobre un proyecto real (basta copiar su código a `objetivos/`) | `./scripts/agente.ps1 objetivo objetivos/mi-proyecto --sin-dotnet` | `./scripts/agente.sh objetivo objetivos/mi-proyecto --sin-dotnet` |
+| 5 | Todas las fases de validación del repo | `$env:SIN_INTERNET = "1"; ./scripts/validar-local.ps1` | `SIN_INTERNET=1 ./scripts/validar-local.sh` |
+| 6 | En VS Code (Copilot Chat) | `/demo`, `/metodologia`, `/sast` | igual |
+
+`--sin-dotnet` omite los analizadores de seguridad .NET, el **único paso que compila** el
+proyecto y que necesita sus paquetes NuGet (no disponibles sin internet). El análisis se hace
+solo con el código fuente: metodología, Semgrep y los agentes de Copilot. Si defines
+`SIN_INTERNET=1` en la sesión, `demo` y `objetivo` omiten ese paso solos.
 
 Sin los scripts: `docker load -i imagenes-sast.tar` y después cualquier servicio, por ejemplo
 `docker compose --profile seguridad run --rm semgrep-objetivo` o
@@ -89,10 +93,10 @@ imágenes.
 - **Reglas de Semgrep y hooks de pre-commit** son los del día en que se construyó la imagen.
   Para actualizarlos, repetir la Parte A (`docker compose --profile "*" build --no-cache semgrep`
   fuerza a bajar las reglas de nuevo).
-- **Analizadores .NET sobre un proyecto nuevo** (`agente dotnet objetivos/<p>`): necesita los
-  paquetes NuGet de ese proyecto. Clónalo en `objetivos/` **antes** de la Parte A; si llega
-  después, repite la Parte A. Semgrep y la metodología **no** tienen este límite: analizan
-  cualquier carpeta.
+- **Analizadores de seguridad .NET: no se usan sin internet.** Compilan el proyecto y
+  necesitan sus paquetes NuGet; por eso los pasos de la Parte B llevan `--sin-dotnet`. Semgrep
+  y la metodología **no** compilan: analizan cualquier carpeta de código. (La app vulnerable de
+  muestra sí trae sus paquetes en la imagen: `./scripts/agente.sh dotnet` funciona sobre ella.)
 - **Fase `api` de la validación:** con `SIN_INTERNET=1` usa la imagen `rickmorty-clean-api`
   ya cargada en vez de reconstruirla.
 - **No cambies los Dockerfile ni las versiones** (`rev`) de `.pre-commit-config.yaml` en la

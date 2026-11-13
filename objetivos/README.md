@@ -16,6 +16,14 @@ OBJETIVO=objetivos/mi-proyecto docker compose --profile seguridad run --rm semgr
 
 En PowerShell: `$env:OBJETIVO="objetivos/mi-proyecto"; docker compose --profile seguridad run --rm semgrep-objetivo`.
 
+Todo junto (metodología + Semgrep + analizadores .NET): `./scripts/agente.sh objetivo objetivos/mi-proyecto`.
+**No hace falta compilar el proyecto:** con `--sin-dotnet` el análisis usa solo el código
+fuente (así se hace en una máquina sin internet, donde no están sus paquetes NuGet):
+
+```bash
+./scripts/agente.sh objetivo objetivos/mi-proyecto --sin-dotnet    # PowerShell: ./scripts/agente.ps1 ...
+```
+
 Luego, en Copilot Chat: `/metodologia objetivos/mi-proyecto` o
 `/sast salida/reportes/semgrep-objetivo.sarif`. Guía completa: [`COPILOT.md`](../COPILOT.md).
 

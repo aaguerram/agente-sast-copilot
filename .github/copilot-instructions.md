@@ -13,9 +13,11 @@ puede replicar en cualquier Azure DevOps.
   reglas de Semgrep, los hooks de pre-commit, el scanner de SonarQube y los paquetes NuGet:
   no propongas `docker pull`, `pip install`, `dotnet tool install` ni reconstruir imágenes.
   Si falta una imagen: `./scripts/imagenes.sh verificar` (o `.ps1`) y la guía
-  `exportar-imagenes-offline.md`. Sin internet, valida con `SIN_INTERNET=1`.
+  `exportar-imagenes-offline.md`. Sin internet, valida con `SIN_INTERNET=1` y analiza con
+  `--sin-dotnet` (`./scripts/agente.sh objetivo <ruta> --sin-dotnet`): el análisis usa solo
+  el código fuente y **no compila** el proyecto.
 - **Punto de entrada único:** `./scripts/agente.sh <subcomando>` (PowerShell: `./scripts/agente.ps1`):
-  `validar`, `rapido`, `demo [ruta]`, `objetivo <ruta>`, `comparar`, `ado-login`,
+  `validar`, `rapido`, `demo [ruta] [--sin-dotnet]`, `objetivo <ruta> [--sin-dotnet]`, `dotnet [ruta]`, `comparar`, `ado-login`,
   `replicar <org> <proy> [--real]`, `pipeline <sub>`. Sin argumentos muestra la ayuda.
 - Validación local de todas las fases: `./scripts/validar-local.sh` (o `.ps1`) → `salida/reportes/`.
 - Azure CLI en contenedor: `./scripts/ado.sh <comando>` (o `.ps1`).
@@ -143,5 +145,7 @@ Versionada en `agente-sast-g7/kb/` y explicada en `docs/criterios-riesgo.md`; fu
 - `kb/asvs-requisitos.md`: OWASP ASVS 5.0.0 (L1/L2), requisitos por defecto del paso 5
   cuando el objetivo no trae `REQUISITOS.md`.
 - `kb/cheatsheets.json`: CWE → OWASP Cheat Sheet para la `referencia` del remediador.
-- Tercera fuente SARIF: analizadores de seguridad .NET (`./scripts/agente.sh dotnet <ruta>`
-  → `salida/reportes/dotnet-normalizado.json`).
+- Tercera fuente SARIF: analizadores de seguridad .NET → `salida/reportes/dotnet-normalizado.json`.
+  Los ejecutan `demo` y `objetivo` (o solos: `./scripts/agente.sh dotnet <ruta>`). Es el único
+  paso que compila el proyecto: se omite con `--sin-dotnet` o `SIN_INTERNET=1`, y entonces ese
+  archivo no existe (no lo des por faltante: trabaja con Semgrep y la metodología).

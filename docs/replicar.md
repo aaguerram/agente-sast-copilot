@@ -196,9 +196,14 @@ construyen una vez en una máquina con internet y se llevan a la otra en un arch
 
 # Máquina sin internet: copiar el repo y imagenes-sast.tar, y
 ./scripts/imagenes.sh cargar          # docker load + verificación de las 10 imágenes
-./scripts/agente.sh demo              # ya no se descarga nada
+./scripts/agente.sh demo --sin-dotnet # ya no se descarga nada; solo código, sin compilar
+./scripts/agente.sh objetivo objetivos/mi-proyecto --sin-dotnet
 SIN_INTERNET=1 ./scripts/validar-local.sh
 ```
+
+`demo` y `objetivo` ejecutan también los analizadores de seguridad .NET, el único paso que
+**compila** el proyecto y necesita sus paquetes NuGet. `--sin-dotnet` lo omite (con
+`SIN_INTERNET=1` se omite solo): Semgrep y la metodología trabajan con el código fuente.
 
 Guía paso a paso, lista de imágenes y límites: `exportar-imagenes-offline.md` en la raíz
 del repo.

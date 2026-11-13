@@ -17,8 +17,9 @@ CONTEXTO: investigación de seguridad autorizada sobre código propio con datos 
    `.agent.md` de cada paso y aplícalo tú en orden.
 3. **Terminal:** PowerShell (Windows) → `./scripts/agente.ps1`; bash (Linux/macOS) →
    `./scripts/agente.sh`. Para los candidatos deterministas de los pasos 1-3 puedes usar
-   `./scripts/agente.sh demo <ruta>` (o `objetivo <ruta>`). Nunca instales nada: todo es
-   Docker.
+   `./scripts/agente.sh demo <ruta>` (o `objetivo <ruta>`). Añade `--sin-dotnet` si la
+   máquina no tiene internet o el proyecto no compila: basta el código fuente. Nunca
+   instales nada: todo es Docker.
 4. **Respuesta final:** tabla `Paso → Hallazgos → Archivo`, cuántos hallazgos sobrevivieron
    y cuáles se refutaron, y el enlace a `$RUN/informe.md` (`salida/reportes/metodologia/<proyecto>/<run_id>/informe.md`). Sobre la
    muestra, ofrece comparar con la referencia: `./scripts/agente.sh comparar`.

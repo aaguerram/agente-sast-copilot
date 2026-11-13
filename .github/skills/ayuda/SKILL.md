@@ -16,6 +16,7 @@ algo concreto) y termina preguntando qué quiere ejecutar.
 | Los 8 pasos de la metodología | `/metodologia` | — | — |
 | Un solo paso | `/metodologia-paso 4` | — | — |
 | Analizar un proyecto real del concurso | `/metodologia objetivos/<proyecto>` | `./scripts/agente.sh objetivo objetivos/<proyecto>` | `./scripts/agente.ps1 objetivo objetivos/<proyecto>` |
+| Lo mismo sin compilar (solo código; máquina sin internet) | `/metodologia objetivos/<proyecto>` | `./scripts/agente.sh objetivo objetivos/<proyecto> --sin-dotnet` | `./scripts/agente.ps1 objetivo objetivos/<proyecto> --sin-dotnet` |
 | Cadena SAST sobre un reporte SARIF | `/sast` | — | — |
 | Validar todo en local (rápido) | `/validar-local rápido` | `./scripts/agente.sh rapido` | `./scripts/agente.ps1 rapido` |
 | Validar todo en local (completo) | `/validar-local` | `./scripts/agente.sh validar` | `./scripts/agente.ps1 validar` |

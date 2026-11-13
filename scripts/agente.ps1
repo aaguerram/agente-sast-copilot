@@ -12,10 +12,16 @@
       validar [opciones]    ./scripts/validar-local.ps1 (-Solo a,b | -Saltar x | -Listar;
                             también acepta --solo/--saltar/--listar).
       rapido                Validación sin SonarQube (la fase más lenta).
-      demo [ruta]           Candidatos deterministas de la metodología (pasos 1-3) y SARIF de
-                            Semgrep sobre la ruta (def. agente-sast-g7/samples/app-vulnerable),
-                            y comparación con la referencia esperado/.
-      objetivo <ruta>       Lo mismo que demo sobre un proyecto real (p. ej. objetivos/<p>).
+      demo [ruta] [--sin-dotnet]
+                            Candidatos deterministas de la metodología (pasos 1-3), SARIF de
+                            Semgrep y de los analizadores de seguridad .NET sobre la ruta
+                            (def. agente-sast-g7/samples/app-vulnerable), y comparación con la
+                            referencia esperado/.
+      objetivo <ruta> [--sin-dotnet]
+                            Lo mismo que demo sobre un proyecto real (p. ej. objetivos/<p>).
+          --sin-dotnet      (o -SinDotnet) No ejecuta los analizadores .NET: es el único paso
+                            que COMPILA el proyecto (necesita sus paquetes NuGet). Sin él basta
+                            el código fuente. Con $env:SIN_INTERNET = "1" se omite solo.
       dotnet [ruta]         Analizadores de seguridad .NET (CA2100, CA3001-CA3012, CA5350…):
                             compila cada .csproj y normaliza el SARIF con CWE/OWASP de la KB.
       comparar              Compara salida/reportes/metodologia/ con la referencia.
@@ -35,6 +41,8 @@
 .EXAMPLE
     ./scripts/agente.ps1 objetivo objetivos/mi-proyecto
 .EXAMPLE
+    ./scripts/agente.ps1 objetivo objetivos/mi-proyecto --sin-dotnet
+.EXAMPLE
     ./scripts/agente.ps1 replicar https://dev.azure.com/ORG PROYECTO
 .EXAMPLE
     ./scripts/agente.ps1 pipeline seguir --pr 12 --org https://dev.azure.com/ORG --project PROYECTO
@@ -52,12 +60,16 @@ function Show-Ayuda {
 Uso: ./scripts/agente.ps1 <subcomando> [opciones]      (bash: ./scripts/agente.sh)
 
   ayuda                    Esta ayuda.
-  demo [ruta]              Metodología (pasos 1-3) + Semgrep sobre la app vulnerable y
-                           comparación con esperado/.
+  demo [ruta] [--sin-dotnet]
+                           Metodología (pasos 1-3) + Semgrep + analizadores .NET sobre la app
+                           vulnerable y comparación con esperado/.
   rapido                   Todas las fases locales menos SonarQube.
   validar [opciones]       Todas las fases (-Solo a,b | -Saltar x | -Listar).
-  objetivo <ruta>          Como demo, sobre un proyecto real: objetivos/<proyecto>.
-  dotnet [ruta]            Analizadores de seguridad .NET (3.ª fuente SARIF) + normalización.
+  objetivo <ruta> [--sin-dotnet]
+                           Como demo, sobre un proyecto real: objetivos/<proyecto>.
+      --sin-dotnet         No compila: omite los analizadores .NET (basta el código fuente).
+                           Con $env:SIN_INTERNET = "1" se omite solo.
+  dotnet [ruta]            Solo los analizadores de seguridad .NET + normalización.
   comparar                 Resultados actuales vs. respuesta de referencia.
   ado-login                az login --use-device-code (Azure CLI en contenedor).
   replicar <org> <proy> [--real]
@@ -69,6 +81,7 @@ Uso: ./scripts/agente.ps1 <subcomando> [opciones]      (bash: ./scripts/agente.s
 Ejemplos:
   ./scripts/agente.ps1 demo
   ./scripts/agente.ps1 objetivo objetivos/mi-proyecto
+  ./scripts/agente.ps1 objetivo objetivos/mi-proyecto --sin-dotnet
   ./scripts/agente.ps1 replicar https://dev.azure.com/ORG PROYECTO
   ./scripts/agente.ps1 pipeline seguir --pr 12 --org https://dev.azure.com/ORG --project PROYECTO
 
@@ -96,31 +109,88 @@ function Resolve-RutaRelativa {
     $r
 }
 
+# Analizadores .NET + normalización. Es el único paso que COMPILA el objetivo.
+# Devuelve $true si terminó bien; no corta el script (el paso es opcional en demo/objetivo).
+function Invoke-PasosDotnet {
+    param([Parameter(Mandatory)][string]$Ruta)
+    New-Item -ItemType Directory -Force -Path 'salida/reportes' | Out-Null
+    # Se borra el resultado anterior: si el paso falla no queda el de otro proyecto.
+    Remove-Item -Force -ErrorAction SilentlyContinue 'salida/reportes/dotnet-normalizado.json'
+    $env:OBJETIVO = $Ruta
+    try { & docker compose --profile seguridad run --rm -T dotnet-objetivo | Out-Host }
+    finally { Remove-Item Env:OBJETIVO -ErrorAction SilentlyContinue }
+    if ($LASTEXITCODE -ne 0) { return $false }
+    $sarifs = @(Get-ChildItem -Path 'salida/reportes/dotnet-objetivo' -Filter '*.sarif' -ErrorAction SilentlyContinue |
+        ForEach-Object { "salida/reportes/dotnet-objetivo/$($_.Name)" })
+    if ($sarifs.Count -eq 0) { return $false }
+    $tty = @(Get-ArgumentoTty)
+    & docker compose --profile agentes run --rm @tty py agente-sast-g7/scripts/normalizar_sarif.py @sarifs `
+        --base /tmp/src --prefijo $Ruta -o salida/reportes/dotnet-normalizado.json | Out-Host
+    return ($LASTEXITCODE -eq 0)
+}
+
+# Separa la ruta de la opción --sin-dotnet (también -SinDotnet) en los argumentos de demo/objetivo.
+function Get-OpcionesAnalisis {
+    param([string[]]$Argumentos)
+    $ruta = ''; $sinDotnet = $false
+    foreach ($a in $Argumentos) {
+        if ($a -in '--sin-dotnet', '-SinDotnet', '-sin-dotnet') { $sinDotnet = $true }
+        elseif ($a.StartsWith('-')) { Exit-ConError "Opción desconocida: $a (usa --sin-dotnet)." }
+        elseif ($ruta) { Exit-ConError 'ERROR: indica una sola ruta.' }
+        else { $ruta = $a }
+    }
+    @{ Ruta = $ruta; SinDotnet = $sinDotnet }
+}
+
 function Invoke-Analisis {
-    param([string]$Ruta)
+    param([string]$Ruta, [switch]$SinDotnet)
     $r = Resolve-RutaRelativa $Ruta
     Test-Prerequisito
     Initialize-EntornoHost
     New-Item -ItemType Directory -Force -Path 'salida/reportes/metodologia' | Out-Null
-    Write-Host ">> 1/3 Candidatos de la metodología (pasos 1-3) sobre $r"
+    Write-Host ">> 1/4 Candidatos de la metodología (pasos 1-3) sobre $r"
     Invoke-Py agente-sast-g7/scripts/metodologia.py todo $r --dir salida/reportes/metodologia
-    Write-Host ">> 2/3 Semgrep sobre $r"
+    Write-Host ">> 2/4 Semgrep sobre $r"
     $env:OBJETIVO = $r
     try {
         & docker compose --profile seguridad run --rm -T semgrep-objetivo
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
     finally { Remove-Item Env:OBJETIVO -ErrorAction SilentlyContinue }
-    Write-Host '>> 3/3 Comparación con la referencia'
+
+    # Paso opcional: no detiene el análisis si se omite o si el proyecto no compila.
+    $motivo = ''
+    if ($SinDotnet) { $motivo = '--sin-dotnet' }
+    elseif ($env:SIN_INTERNET -eq '1') { $motivo = 'SIN_INTERNET=1: compilar necesita los paquetes NuGet del proyecto' }
+    elseif (-not (Get-ChildItem -Path $r -Recurse -Filter '*.csproj' -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' } | Select-Object -First 1)) {
+        $motivo = "no hay ningún .csproj en $r"
+    }
+    $dotnetOk = $false
+    if ($motivo) {
+        Remove-Item -Force -ErrorAction SilentlyContinue 'salida/reportes/dotnet-normalizado.json'
+        Write-Host ">> 3/4 Analizadores de seguridad .NET: omitido ($motivo)"
+    }
+    else {
+        Write-Host ">> 3/4 Analizadores de seguridad .NET sobre $r (compila el proyecto; --sin-dotnet lo omite)"
+        $dotnetOk = Invoke-PasosDotnet $r
+        if (-not $dotnetOk) {
+            [Console]::Error.WriteLine('AVISO: los analizadores .NET no terminaron (¿el proyecto compila?, ¿faltan paquetes NuGet?). El análisis sigue sin esa fuente.')
+        }
+    }
+
+    Write-Host '>> 4/4 Comparación con la referencia'
     Invoke-Py agente-sast-g7/scripts/comparar_esperado.py
+    $extra = if ($dotnetOk) { ', dotnet-normalizado.json' } else { '' }
     Write-Host @"
 
-Listo. Reportes en salida/reportes/ (semgrep-objetivo.sarif, objetivo-normalizado.json) y
+Listo. Reportes en salida/reportes/ (semgrep-objetivo.sarif, objetivo-normalizado.json$extra) y
 salida/reportes/metodologia/ (candidatos-*.json).
 Siguiente paso, en VS Code con Copilot Chat:
   /metodologia $r        (los 8 pasos con razonamiento + informe)
   /sast salida/reportes/semgrep-objetivo.sarif
 "@
+    if ($dotnetOk) { Write-Host '  /sast salida/reportes/dotnet-normalizado.json' }
 }
 
 function Invoke-AnalisisDotnet {
@@ -128,20 +198,11 @@ function Invoke-AnalisisDotnet {
     $r = Resolve-RutaRelativa $Ruta
     Test-Prerequisito
     Initialize-EntornoHost
-    New-Item -ItemType Directory -Force -Path 'salida/reportes' | Out-Null
-    Write-Host ">> 1/2 Analizadores de seguridad .NET sobre $r (dotnet build en contenedor)"
-    $env:OBJETIVO = $r
-    try {
-        & docker compose --profile seguridad run --rm -T dotnet-objetivo
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    }
-    finally { Remove-Item Env:OBJETIVO -ErrorAction SilentlyContinue }
-    Write-Host '>> 2/2 Normalización (CWE/OWASP desde agente-sast-g7/kb/)'
-    $sarifs = @(Get-ChildItem -Path 'salida/reportes/dotnet-objetivo' -Filter '*.sarif' |
-        ForEach-Object { "salida/reportes/dotnet-objetivo/$($_.Name)" })
-    Invoke-Py agente-sast-g7/scripts/normalizar_sarif.py @sarifs --base /tmp/src --prefijo $r -o salida/reportes/dotnet-normalizado.json
+    Write-Host ">> Analizadores de seguridad .NET sobre $r (dotnet build en contenedor) + normalización"
+    if (-not (Invoke-PasosDotnet $r)) { Exit-ConError 'ERROR: los analizadores .NET no terminaron (¿el proyecto compila?).' }
     Write-Host 'Siguiente paso, en Copilot Chat: /sast salida/reportes/dotnet-normalizado.json'
 }
+
 
 $argumentos = @($args | ForEach-Object { "$_" })
 $cmd = if ($argumentos.Count -gt 0) { $argumentos[0] } else { 'ayuda' }
@@ -168,12 +229,14 @@ switch ($cmd) {
         exit $LASTEXITCODE
     }
     'demo' {
-        Invoke-Analisis $(if ($resto.Count -gt 0) { $resto[0] } else { $muestra })
+        $op = Get-OpcionesAnalisis $resto
+        Invoke-Analisis -Ruta $(if ($op.Ruta) { $op.Ruta } else { $muestra }) -SinDotnet:$op.SinDotnet
         exit 0
     }
     'objetivo' {
-        if ($resto.Count -lt 1) { Exit-ConError 'Uso: ./scripts/agente.ps1 objetivo objetivos/<proyecto>' }
-        Invoke-Analisis $resto[0]
+        $op = Get-OpcionesAnalisis $resto
+        if (-not $op.Ruta) { Exit-ConError 'Uso: ./scripts/agente.ps1 objetivo objetivos/<proyecto> [--sin-dotnet]' }
+        Invoke-Analisis -Ruta $op.Ruta -SinDotnet:$op.SinDotnet
         exit 0
     }
     'dotnet' { Invoke-AnalisisDotnet ($(if ($resto.Count -ge 1) { $resto[0] } else { $muestra })); exit 0 }

@@ -90,8 +90,9 @@ Code y remiten a la skill del mismo nombre: hacen exactamente lo mismo.
 |---|---|
 | `validar [--solo a,b \| --saltar x \| --listar]` | `./scripts/validar-local.sh` (`.ps1`: `-Solo`, `-Saltar`, `-Listar`) |
 | `rapido` | `./scripts/validar-local.sh --saltar sonarqube` |
-| `demo [ruta]` / `objetivo <ruta>` | `metodologia.py todo` + servicio `semgrep-objetivo` + `comparar_esperado.py` |
-| `dotnet [ruta]` | Servicio `dotnet-objetivo` (analizadores de seguridad .NET) + `normalizar_sarif.py` → `salida/reportes/dotnet-normalizado.json` |
+| `demo [ruta]` / `objetivo <ruta>` | `metodologia.py todo` + servicio `semgrep-objetivo` + analizadores .NET (lo mismo que `dotnet`) + `comparar_esperado.py` |
+| `demo`/`objetivo` … `--sin-dotnet` | Lo mismo **sin compilar**: omite los analizadores .NET y analiza solo el código fuente. Con `SIN_INTERNET=1` se omiten solos |
+| `dotnet [ruta]` | Solo el servicio `dotnet-objetivo` (analizadores de seguridad .NET; **compila** el proyecto) + `normalizar_sarif.py` → `salida/reportes/dotnet-normalizado.json` |
 | `comparar` | `agente-sast-g7/scripts/comparar_esperado.py` |
 | `ado-login` | `./scripts/ado.sh az login --use-device-code` |
 | `replicar <org> <proy> [--real]` | `./scripts/ado.sh ./scripts/ado-bootstrap.sh … [--dry-run]` |
@@ -310,15 +311,21 @@ los comandos la usan si no indicas ruta.
     Equivale a `OBJETIVO=objetivos/mi-proyecto docker compose --profile seguridad run --rm semgrep-objetivo`
     más `metodologia.py todo`.
 
-    Opcional, tercera fuente SARIF (si el proyecto compila): analizadores de seguridad .NET
-    (`CA2100`, `CA3001`–`CA3012`, `CA2300`–`CA2330`, `CA5350`–`CA5403`), con CWE y OWASP
-    completados desde la base de conocimiento:
+    El mismo comando añade una tercera fuente SARIF si el proyecto tiene `.csproj`:
+    analizadores de seguridad .NET (`CA2100`, `CA3001`–`CA3012`, `CA2300`–`CA2330`,
+    `CA5350`–`CA5403`), con CWE y OWASP completados desde la base de conocimiento. Genera
+    `salida/reportes/dotnet-objetivo/*.sarif` y `salida/reportes/dotnet-normalizado.json`.
+    Es el **único paso que compila** el proyecto (necesita sus paquetes NuGet); si no compila,
+    avisa y el análisis sigue sin esa fuente.
+
+    **Solo con el código, sin compilar** (y siempre en una máquina sin internet):
 
     ```bash
-    ./scripts/agente.sh dotnet objetivos/mi-proyecto        # PowerShell: ./scripts/agente.ps1 dotnet ...
+    ./scripts/agente.sh objetivo objetivos/mi-proyecto --sin-dotnet   # PowerShell: ./scripts/agente.ps1 objetivo ... --sin-dotnet
     ```
 
-    Genera `salida/reportes/dotnet-objetivo/*.sarif` y `salida/reportes/dotnet-normalizado.json`.
+    Con `SIN_INTERNET=1` en el entorno el paso se omite solo. Para ejecutar únicamente los
+    analizadores: `./scripts/agente.sh dotnet objetivos/mi-proyecto`.
 
 4. En el chat:
 

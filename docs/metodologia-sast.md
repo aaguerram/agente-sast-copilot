@@ -115,7 +115,7 @@ OWASP, OWASP ASVS, OWASP Cheat Sheets) y en la matriz de criticidad de
 |---|---|---|
 | Semgrep CE | `./scripts/agente.sh objetivo <ruta>` (servicio `semgrep-objetivo`) | De las etiquetas de cada regla |
 | SonarQube Community | `./scripts/agente.sh validar --solo sonarqube` | De la regla |
-| **Analizadores de seguridad .NET** | `./scripts/agente.sh dotnet <ruta>` (servicio `dotnet-objetivo`: `dotnet build` con `AnalysisModeSecurity=All` y `ErrorLog` SARIF 2.1) | CWE de la tabla `CAxxxx` de `normalizar_sarif.py`; OWASP desde la KB |
+| **Analizadores de seguridad .NET** | `./scripts/agente.sh objetivo <ruta>` (o solo esta fuente: `dotnet <ruta>`; servicio `dotnet-objetivo`: `dotnet build` con `AnalysisModeSecurity=All` y `ErrorLog` SARIF 2.1). Única fuente que **compila** el proyecto: se omite con `--sin-dotnet` o `SIN_INTERNET=1` | CWE de la tabla `CAxxxx` de `normalizar_sarif.py`; OWASP desde la KB |
 | Fortify (banco) | Reporte SARIF oficial | De la herramienta |
 
 Los analizadores .NET siguen el dato entre métodos y archivos (reglas `CA3001`–`CA3012`)

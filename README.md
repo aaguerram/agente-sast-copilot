@@ -59,8 +59,13 @@ SonarQube y los paquetes NuGet: en la máquina destino solo se ejecuta `docker c
 ```bash
 ./scripts/imagenes.sh exportar     # máquina CON internet -> imagenes-sast.tar (PowerShell: imagenes.ps1)
 ./scripts/imagenes.sh cargar       # máquina SIN internet: docker load + verificación
+./scripts/agente.sh objetivo objetivos/mi-proyecto --sin-dotnet   # solo código, sin compilar
 SIN_INTERNET=1 ./scripts/validar-local.sh
 ```
+
+`--sin-dotnet` omite los analizadores de seguridad .NET, el único paso que compila el
+proyecto (necesita sus paquetes NuGet); con `SIN_INTERNET=1` se omiten solos. Semgrep y la
+metodología analizan el código fuente tal cual.
 
 Guía paso a paso: [`exportar-imagenes-offline.md`](exportar-imagenes-offline.md).
 
