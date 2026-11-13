@@ -28,8 +28,8 @@ No hace falta instalar Python, .NET, Semgrep, pre-commit, gitleaks ni SonarQube:
 corre en su imagen, con la misma versión fijada que el pipeline. Tu usuario debe poder usar
 Docker sin `sudo` (grupo `docker`).
 
-La primera ejecución descarga varias imágenes (unos GB: SDK de .NET, SonarQube, Azure CLI);
-las siguientes son mucho más rápidas. Para una máquina sin internet, ver la
+La primera ejecución descarga y construye varias imágenes (unos GB: SDK de .NET, SonarQube,
+Semgrep con sus reglas, pre-commit con sus hooks); las siguientes no descargan nada. Para una máquina sin internet, ver la
 sección 6.
 
 ### Windows
@@ -184,19 +184,21 @@ En la terminal, los mismos atajos: `./scripts/agente.sh demo`, `rapido`, `ado-lo
 El agente **pide confirmación antes de cada acción externa** (crear repo, push, pipeline,
 ejecución, work items), nunca pide el PAT en el chat y no instala nada en la máquina.
 
-## 6. Máquina sin acceso a los registros de imágenes
+## 6. Máquina sin internet
 
-Exporta las imágenes en una máquina con internet y cárgalas en la otra:
+Todo lo que las fases bajaban al ejecutarse (reglas de Semgrep, hooks de pre-commit,
+`dotnet-sonarscanner`, paquetes NuGet) está **dentro de las imágenes** de `tools/`. Se
+construyen una vez en una máquina con internet y se llevan a la otra en un archivo:
 
 ```bash
-# Máquina con internet (después de un validar-local.sh completo)
-docker save $(docker compose --profile seguridad --profile tools --profile agentes --profile ado config --images) \
-  sonarqube:community mcr.microsoft.com/dotnet/sdk:10.0 curlimages/curl:8.17.0 \
-  | gzip > imagenes-agente.tar.gz
+# Máquina con internet (PowerShell: ./scripts/imagenes.ps1 exportar)
+./scripts/imagenes.sh exportar        # construye, descarga y guarda imagenes-sast.tar
 
-# Máquina destino (en Windows: docker load -i imagenes-agente.tar.gz, igual)
-docker load -i imagenes-agente.tar.gz
+# Máquina sin internet: copiar el repo y imagenes-sast.tar, y
+./scripts/imagenes.sh cargar          # docker load + verificación de las 10 imágenes
+./scripts/agente.sh demo              # ya no se descarga nada
+SIN_INTERNET=1 ./scripts/validar-local.sh
 ```
 
-Semgrep descarga sus reglas del registro (`p/default`, `p/csharp`, `p/secrets`) y
-pre-commit sus hooks en la primera ejecución: esas dos fases necesitan internet.
+Guía paso a paso, lista de imágenes y límites: `exportar-imagenes-offline.md` en la raíz
+del repo.

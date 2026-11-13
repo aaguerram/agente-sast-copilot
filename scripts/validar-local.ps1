@@ -22,7 +22,8 @@
 
     Reportes: salida/reportes/ (SARIF, JSON normalizado, logs/<fase>.log, resumen.md).
     Salida: 0 si todas las fases pasan, 1 si alguna falla.
-    Variables opcionales: COMPOSE_PROJECT_NAME, SONAR_PORT (def. 9100), API_PORT_SMOKE (def. 18080).
+    Variables opcionales: COMPOSE_PROJECT_NAME, SONAR_PORT (def. 9100), API_PORT_SMOKE (def. 18080),
+    SIN_INTERNET=1 (máquina sin internet: la fase api usa la imagen ya cargada, no la reconstruye).
 
 .PARAMETER Solo
     Ejecuta solo estas fases (lista separada por comas).
@@ -65,13 +66,21 @@ Initialize-EntornoHost
 $Reportes = Join-Path $Raiz 'salida/reportes'
 $Logs = Join-Path $Reportes 'logs'
 # Se crean ANTES de montarlos (si los crea Docker, en Linux quedan de root).
-New-Item -ItemType Directory -Force -Path $Reportes, $Logs, $env:PRE_COMMIT_CACHE | Out-Null
+New-Item -ItemType Directory -Force -Path $Reportes, $Logs | Out-Null
 $Proyecto = if ($env:COMPOSE_PROJECT_NAME) { $env:COMPOSE_PROJECT_NAME } else { 'agente-pruebas-copilot' }
 
 # ------------------------------------------------------------ utilidades
 function Invoke-Dc {
     & docker compose -p $Proyecto @args
     if ($LASTEXITCODE -ne 0) { throw "docker compose $($args -join ' ') terminó con código $LASTEXITCODE" }
+}
+
+# Construye la imagen de un servicio solo si falta: con las imágenes ya cargadas
+# (docker load) no se toca la red. Tras cambiar un Dockerfile: docker compose --profile "*" build
+function Confirm-Imagen {
+    param([Parameter(Mandatory)][string]$Imagen, [Parameter(Mandatory)][string]$Servicio)
+    & docker image inspect $Imagen *> $null
+    if ($LASTEXITCODE -ne 0) { Invoke-Dc --profile '*' build -q $Servicio }
 }
 
 function Get-PuertoLibre {
@@ -114,7 +123,8 @@ $Fases = [ordered]@{
             agente-sast-g7/samples/app-vulnerable --dir salida/reportes/metodologia
     }
     'sonarqube'    = {
-        Invoke-Dc --profile seguridad build -q sonarqube
+        # El SDK con el scanner y la caché de NuGet lo lanza sonar-analizar.sh como contenedor hermano.
+        Confirm-Imagen agente-pruebas-copilot-dotnet dotnet-objetivo
         Invoke-Dc --profile seguridad run --rm -T sonarqube
     }
     'docs'         = {
@@ -132,32 +142,29 @@ $Fases = [ordered]@{
         $env:API_PORT = "$puerto"
         $fallas = 0
         try {
-            ">> Construyendo y levantando rickmorty-clean en el puerto $puerto (proyecto $proy)"
-            & docker @api up -d --build --wait --wait-timeout 180
-            if ($LASTEXITCODE -ne 0) { $fallas++ }
+            $construir = @('--build')
+            if ($env:SIN_INTERNET -eq '1') {
+                $construir = @()
+                '>> SIN_INTERNET=1: se usa la imagen rickmorty-clean-api ya cargada (no se reconstruye)'
+            }
+            ">> Levantando rickmorty-clean en el puerto $puerto (proyecto $proy)"
+            & docker @api up -d @construir --wait --wait-timeout 180
+            if ($LASTEXITCODE -ne 0) {
+                $fallas++
+                if ($construir.Count -gt 0) { '   Si esta máquina no tiene internet, repite con $env:SIN_INTERNET = "1" (usa la imagen ya cargada).' }
+            }
             else {
-                # La prueba corre en un contenedor de la misma red: no depende de curl en el host.
-                $red = "${proy}_default"
-                $curl = @('run', '--rm', '--network', $red, 'curlimages/curl:8.17.0')
-                foreach ($i in 1..30) {
-                    & docker @curl -fs -o /dev/null 'http://api:8080/api/characters' *> $null
-                    if ($LASTEXITCODE -eq 0) { break }
-                    Start-Sleep -Seconds 2
-                }
-                $rutas = @(
-                    @('/api/characters', '200'), @('/api/characters/1', '200'), @('/api/locations', '200'),
-                    @('/api/locations/1', '200'), @('/api/locations/1/residents', '200'), @('/api/episodes', '200'),
-                    @('/api/episodes/1', '200'), @('/api/episodes/1/characters', '200'), @('/api/characters/999999', '404'))
-                foreach ($r in $rutas) {
-                    $codigo = (& docker @curl -s -o /dev/null -w '%{http_code}' "http://api:8080$($r[0])" | Out-String).Trim()
-                    if ($codigo -eq $r[1]) { "   OK    $codigo $($r[0])" }
-                    else { "   FALLA $codigo $($r[0]) (esperado $($r[1]))"; $fallas++ }
-                }
+                # La prueba corre en UN contenedor de la misma red: no depende de curl en el host.
+                Confirm-Imagen agente-pruebas-copilot-python py
+                $humo = ConvertTo-RutaDocker (Join-Path $Raiz 'scripts/api_humo.py')
+                & docker run --rm --network "${proy}_default" -v "${humo}:/api_humo.py:ro" `
+                    agente-pruebas-copilot-python python /api_humo.py http://api:8080
+                if ($LASTEXITCODE -ne 0) { $fallas++ }
             }
             if ($fallas -gt 0) { & docker @api logs --tail 40 2>&1 | ForEach-Object { "   $_" } }
         }
         finally {
-            & docker @api down --rmi local -v *> $null
+            & docker @api down -v *> $null
             Remove-Item Env:API_PORT -ErrorAction SilentlyContinue
         }
         if ($fallas -gt 0) { throw "$fallas comprobación(es) de la API fallaron." }

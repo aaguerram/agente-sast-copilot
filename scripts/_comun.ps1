@@ -63,7 +63,6 @@ function Initialize-EntornoHost {
             $env:DOCKER_GID = if ($LASTEXITCODE -eq 0 -and $gid) { $gid } else { '0' }
         }
     }
-    $env:PRE_COMMIT_CACHE ??= ConvertTo-RutaDocker (Join-Path $perfil '.cache/agente-pruebas-pre-commit')
     $env:AZURE_CONFIG_HOST ??= ConvertTo-RutaDocker (Join-Path $perfil '.azure')
 }
 

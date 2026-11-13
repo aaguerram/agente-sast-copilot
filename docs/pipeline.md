@@ -142,7 +142,9 @@ script.
   cubren Semgrep y gitleaks.
 - **La edición Community no analiza ramas ni comenta en los PR.** Aquí el resultado llega
   al PR como comprobación aprobada o fallida del pipeline, no como comentarios.
-- **Semgrep descarga sus reglas** del registro público y gitleaks/SonarQube sus imágenes:
-  el agente necesita salida a internet o un espejo interno.
+- **En el pipeline, Semgrep descarga sus reglas** del registro público y gitleaks/SonarQube
+  sus imágenes: el agente de Azure Pipelines necesita salida a internet o un espejo interno.
+  En local no: las imágenes de `docker compose` ya traen reglas, hooks y paquetes (ver
+  «Máquina sin internet» en [Replicar](replicar.md)).
 - **El hook local se puede saltar** (`git commit --no-verify`); el control real es el
   pipeline.

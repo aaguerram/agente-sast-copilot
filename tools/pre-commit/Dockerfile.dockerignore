@@ -1,0 +1,3 @@
+# Contexto mínimo: la imagen solo necesita la configuración de los hooks.
+*
+!.pre-commit-config.yaml

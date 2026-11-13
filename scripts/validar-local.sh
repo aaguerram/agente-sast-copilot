@@ -22,7 +22,8 @@
 # Salida:    0 si todas las fases pasan, 1 si alguna falla.
 #
 # Variables opcionales: COMPOSE_PROJECT_NAME (aislar una corrida), SONAR_PORT (def. 9100),
-# API_PORT_SMOKE (primer puerto a probar para la API; por defecto 18080, busca el siguiente libre).
+# API_PORT_SMOKE (primer puerto a probar para la API; por defecto 18080, busca el siguiente libre),
+# SIN_INTERNET=1 (máquina sin internet: la fase api usa la imagen ya cargada, no la reconstruye).
 set -uo pipefail
 
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
@@ -56,12 +57,17 @@ SOCK=/var/run/docker.sock
 DOCKER_GID="$(stat -c %g "$SOCK" 2>/dev/null || stat -f %g "$SOCK" 2>/dev/null || echo 0)"; export DOCKER_GID
 # Docker Desktop (macOS): dentro de la VM el socket solo lo usa root.
 [ "$(uname -s)" = Darwin ] && export SONAR_RUN_USER="${SONAR_RUN_USER:-0:0}" DOCKER_GID=0
-export PRE_COMMIT_CACHE="${PRE_COMMIT_CACHE:-$HOME/.cache/agente-pruebas-pre-commit}"
 REPORTES="$RAIZ/salida/reportes"; LOGS="$REPORTES/logs"
 # Se crean con tu usuario ANTES de montarlos (si los crea Docker, quedan de root).
-mkdir -p "$REPORTES" "$LOGS" "$PRE_COMMIT_CACHE"
+mkdir -p "$REPORTES" "$LOGS"
 PROYECTO="${COMPOSE_PROJECT_NAME:-agente-pruebas-copilot}"
 DC=(docker compose -p "$PROYECTO")
+
+# Construye la imagen de un servicio solo si falta: con las imágenes ya cargadas
+# (docker load) no se toca la red. Tras cambiar un Dockerfile: docker compose --profile "*" build
+asegurar_imagen() { # asegurar_imagen <imagen> <servicio>
+  docker image inspect "$1" >/dev/null 2>&1 || "${DC[@]}" --profile "*" build -q "$2"
+}
 
 # ------------------------------------------------------------ fases
 fase_pre-commit()   { "${DC[@]}" --profile seguridad run --rm pre-commit; }
@@ -82,7 +88,11 @@ fase_metodologia() {
     "${py[@]}" agente-sast-g7/scripts/metodologia.py todo agente-sast-g7/samples/app-vulnerable \
       --dir salida/reportes/metodologia
 }
-fase_sonarqube()    { "${DC[@]}" --profile seguridad build -q sonarqube && "${DC[@]}" --profile seguridad run --rm sonarqube; }
+fase_sonarqube() {
+  # El SDK con el scanner y la caché de NuGet lo lanza sonar-analizar.sh como contenedor hermano.
+  asegurar_imagen agente-pruebas-copilot-dotnet dotnet-objetivo &&
+    "${DC[@]}" --profile seguridad run --rm sonarqube
+}
 fase_docs() {
   local habia; habia="$("${DC[@]}" ps -q plantuml 2>/dev/null)"
   "${DC[@]}" --profile tools run --rm docs-build; local rc=$?
@@ -96,30 +106,27 @@ puerto_libre() {
   echo "$p"
 }
 fase_api() {
-  local proy="${PROYECTO}-api-smoke" puerto rc=0 url codigo
+  local proy="${PROYECTO}-api-smoke" puerto rc=0
   puerto="$(puerto_libre)"
   local api=(docker compose -p "$proy" -f rickmorty-clean/docker-compose.yml)
-  echo ">> Construyendo y levantando rickmorty-clean en el puerto $puerto (proyecto $proy)"
-  API_PORT="$puerto" "${api[@]}" up -d --build --wait --wait-timeout 180 || rc=1
+  local construir=(--build)
+  if [ "${SIN_INTERNET:-0}" = 1 ]; then
+    construir=(); echo ">> SIN_INTERNET=1: se usa la imagen rickmorty-clean-api ya cargada (no se reconstruye)"
+  fi
+  echo ">> Levantando rickmorty-clean en el puerto $puerto (proyecto $proy)"
+  API_PORT="$puerto" "${api[@]}" up -d "${construir[@]}" --wait --wait-timeout 180 || {
+    rc=1
+    [ ${#construir[@]} = 0 ] || echo "   Si esta máquina no tiene internet, repite con SIN_INTERNET=1 (usa la imagen ya cargada)."
+  }
   if [ $rc = 0 ]; then
-    # La prueba corre en un contenedor de la misma red: no depende de curl en el host.
-    local red="${proy}_default" rutas=(
-      "/api/characters 200" "/api/characters/1 200" "/api/locations 200" "/api/locations/1 200"
-      "/api/locations/1/residents 200" "/api/episodes 200" "/api/episodes/1 200"
-      "/api/episodes/1/characters 200" "/api/characters/999999 404")
-    for _ in $(seq 1 30); do
-      docker run --rm --network "$red" curlimages/curl:8.17.0 -fs -o /dev/null "http://api:8080/api/characters" && break
-      sleep 2
-    done
-    for r in "${rutas[@]}"; do
-      url="${r% *}"; esperado="${r#* }"
-      codigo="$(docker run --rm --network "$red" curlimages/curl:8.17.0 -s -o /dev/null -w '%{http_code}' "http://api:8080$url")"
-      if [ "$codigo" = "$esperado" ]; then echo "   OK    $codigo $url"
-      else echo "   FALLA $codigo $url (esperado $esperado)"; rc=1; fi
-    done
+    # La prueba corre en UN contenedor de la misma red: no depende de curl en el host.
+    asegurar_imagen agente-pruebas-copilot-python py &&
+      docker run --rm --network "${proy}_default" -v "$RAIZ/scripts/api_humo.py:/api_humo.py:ro" \
+        agente-pruebas-copilot-python python /api_humo.py http://api:8080 || rc=1
   fi
   [ $rc = 0 ] || API_PORT="$puerto" "${api[@]}" logs --tail 40 2>&1 | sed 's/^/   /'
-  API_PORT="$puerto" "${api[@]}" down --rmi local -v >/dev/null 2>&1
+  # La imagen rickmorty-clean-api se conserva: la siguiente corrida reutiliza sus capas y sin internet no se podría reconstruir.
+  API_PORT="$puerto" "${api[@]}" down -v >/dev/null 2>&1
   return $rc
 }
 

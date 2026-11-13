@@ -51,3 +51,8 @@ docs/hackapro-bases.md
 
 # Memoria generada por memanto (notas locales de sesión)
 MEMORY.md
+
+# Paquete de imágenes para la máquina sin internet (scripts/imagenes.sh exportar)
+imagenes-*.tar
+imagenes-*.tar.gz
+salida-export.txt

@@ -27,7 +27,7 @@ documentación, API de ejemplo, agentes y pipeline de seguridad.
 | `COPILOT.md` | Guía de uso de los agentes en Copilot Chat |
 | `agente-sast-g7/METODOLOGIA.md` | Metodología SAST en detalle: cada paso, archivos de entrada y salida, validación y ejemplos |
 | `docs/datos/agente-sast-g7.pptx` | Presentación del Grupo 7 (también en el sitio de docs, página *Presentación*) |
-| `scripts/` | `agente` (punto de entrada único: `demo`, `rapido`, `validar`, `objetivo`, `comparar`, `ado-login`, `replicar`, `pipeline`), `validar-local` (todas las fases en local), `ado-bootstrap` + `ado` (subir a Azure DevOps), `ado-pipeline` (ejecutar, seguir y descargar el pipeline), cada uno en `.sh` (bash) y `.ps1` (PowerShell 7, Windows); `sonar-analizar.sh` (SonarQube) |
+| `scripts/` | `agente` (punto de entrada único: `demo`, `rapido`, `validar`, `objetivo`, `comparar`, `ado-login`, `replicar`, `pipeline`), `validar-local` (todas las fases en local), `ado-bootstrap` + `ado` (subir a Azure DevOps), `ado-pipeline` (ejecutar, seguir y descargar el pipeline), `imagenes` (exportar / cargar las imágenes para una máquina sin internet), cada uno en `.sh` (bash) y `.ps1` (PowerShell 7, Windows); `sonar-analizar.sh` (SonarQube) |
 
 ## Pipeline de seguridad
 
@@ -50,6 +50,19 @@ En **Windows** (Docker Desktop + PowerShell 7) los mismos scripts existen como `
 ```
 
 Requisitos y equivalencias en [`docs/replicar.md`](docs/replicar.md#windows).
+
+### Máquina sin internet
+
+Las imágenes traen dentro las reglas de Semgrep, los hooks de pre-commit, el scanner de
+SonarQube y los paquetes NuGet: en la máquina destino solo se ejecuta `docker compose`.
+
+```bash
+./scripts/imagenes.sh exportar     # máquina CON internet -> imagenes-sast.tar (PowerShell: imagenes.ps1)
+./scripts/imagenes.sh cargar       # máquina SIN internet: docker load + verificación
+SIN_INTERNET=1 ./scripts/validar-local.sh
+```
+
+Guía paso a paso: [`exportar-imagenes-offline.md`](exportar-imagenes-offline.md).
 
 ## Replicar en otro Azure DevOps
 

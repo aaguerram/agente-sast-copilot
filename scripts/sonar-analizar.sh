@@ -16,7 +16,9 @@
 #   SONAR_PORT          Puerto local del efímero      (def. 9000)
 #   SONAR_IMAGE         Imagen del servidor           (def. sonarqube:community)
 #   SONAR_SCANNER_VERSION  dotnet-sonarscanner        (def. 12.1.0)
-#   DOTNET_SDK_IMAGE    SDK si no hay dotnet local    (def. mcr.microsoft.com/dotnet/sdk:10.0)
+#   DOTNET_SDK_IMAGE    SDK si no hay dotnet local    (def. mcr.microsoft.com/dotnet/sdk:10.0;
+#                       docker compose usa agente-pruebas-copilot-dotnet, que ya trae el
+#                       scanner y los paquetes NuGet: el análisis no necesita internet)
 #   SONAR_ADMIN_USER / SONAR_ADMIN_PASSWORD  Cuenta inicial del efímero (def. admin / admin)
 #   SONAR_KEEP=1        No elimina el servidor efímero al terminar (para abrir la UI)
 #   REPORTES_DIR        Carpeta de salida             (def. reportes)
@@ -111,7 +113,9 @@ fi
 ANALISIS='
 set -e
 export PATH="$PATH:$HOME/.dotnet/tools"
-dotnet tool update --global dotnet-sonarscanner --version "$SCANNER_VERSION" >/dev/null
+# La imagen agente-pruebas-copilot-dotnet ya trae el scanner: no se descarga nada.
+command -v dotnet-sonarscanner >/dev/null 2>&1 ||
+  dotnet tool update --global dotnet-sonarscanner --version "$SCANNER_VERSION" >/dev/null
 dotnet sonarscanner begin /k:"$PROJECT_KEY" /n:"$PROJECT_KEY" \
   /d:sonar.host.url="$SCAN_URL" /d:sonar.token="$TOKEN" \
   /d:sonar.qualitygate.wait=true /d:sonar.qualitygate.timeout=300 \

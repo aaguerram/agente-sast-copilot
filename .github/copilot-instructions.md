@@ -9,6 +9,11 @@ puede replicar en cualquier Azure DevOps.
 
 - **Solo git y Docker en la máquina.** Todo corre con `docker compose`; no instales
   herramientas (ni `pip install`, ni `az`, ni `dotnet`) en el host.
+- **La máquina puede NO tener internet.** Las imágenes de `docker compose` ya traen las
+  reglas de Semgrep, los hooks de pre-commit, el scanner de SonarQube y los paquetes NuGet:
+  no propongas `docker pull`, `pip install`, `dotnet tool install` ni reconstruir imágenes.
+  Si falta una imagen: `./scripts/imagenes.sh verificar` (o `.ps1`) y la guía
+  `exportar-imagenes-offline.md`. Sin internet, valida con `SIN_INTERNET=1`.
 - **Punto de entrada único:** `./scripts/agente.sh <subcomando>` (PowerShell: `./scripts/agente.ps1`):
   `validar`, `rapido`, `demo [ruta]`, `objetivo <ruta>`, `comparar`, `ado-login`,
   `replicar <org> <proy> [--real]`, `pipeline <sub>`. Sin argumentos muestra la ayuda.

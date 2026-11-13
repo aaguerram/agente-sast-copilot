@@ -22,6 +22,7 @@ services:
   docs:
     build:
       context: ./tools/mkdocs
+    image: agente-pruebas-copilot-docs
     user: *user
     restart: unless-stopped
     depends_on:
@@ -40,6 +41,7 @@ services:
   docs-build:
     build:
       context: ./tools/mkdocs
+    image: agente-pruebas-copilot-docs   # la misma imagen que "docs"
     profiles: ["tools"]
     user: *user
     depends_on:
@@ -63,28 +65,33 @@ services:
   #   docker compose --profile seguridad run --rm semgrep-demo
   #   docker compose --profile seguridad run --rm sonarqube
   # Reportes en salida/reportes/.
+  #
+  # SIN INTERNET: todo lo que estas fases bajaban al ejecutarse (reglas de Semgrep, hooks de
+  # pre-commit, dotnet-sonarscanner, paquetes NuGet) está horneado en las imágenes de tools/.
+  # Se construyen una vez en una máquina con internet y se llevan con docker save / load:
+  # ver exportar-imagenes-offline.md.
+  #
+  # Python 3.12 + git + pre-commit con todos los hooks ya instalados (tools/pre-commit).
+  # Es también la imagen de los scripts Python ("py", "pre-commit-hooks-tests").
   pre-commit:
-    image: python:3.12
+    build: &python-build
+      context: .
+      dockerfile: tools/pre-commit/Dockerfile
+    image: &python-image agente-pruebas-copilot-python
     profiles: ["seguridad"]
     user: *user
     working_dir: /repo
     environment:
       <<: *git-seguro
-      HOME: /cache
-      PRE_COMMIT_HOME: /cache/pre-commit
-      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      HOME: /tmp
     volumes:
       - ./:/repo
-      - ${PRE_COMMIT_CACHE:-${HOME}/.cache/agente-pruebas-pre-commit}:/cache   # fuera del repo: Sonar recorre todo el árbol
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - >-
-        pip install --quiet --user pre-commit==4.7.0 &&
-        /cache/.local/bin/pre-commit run --all-files --show-diff-on-failure
+    command: ["pre-commit", "run", "--all-files", "--show-diff-on-failure"]
 
   # Pruebas de los hooks .NET propios (tools/pre-commit-hooks/), solo stdlib.
   pre-commit-hooks-tests:
-    image: python:3.12
+    build: *python-build
+    image: *python-image
     profiles: ["seguridad"]
     user: *user
     working_dir: /repo
@@ -110,8 +117,14 @@ services:
       - --report-format=sarif
       - --report-path=/reportes/gitleaks.sarif
 
+  # Semgrep CE con las reglas del registro ya dentro de la imagen (/p-default.json,
+  # /p-csharp.json, /p-secrets.json = p/default, p/csharp, p/secrets): no usa la red.
   semgrep:
-    image: semgrep/semgrep:1.185.0
+    build: &semgrep-build
+      context: ./tools/semgrep
+      args:
+        SEMGREP_VERSION: "1.185.0"
+    image: &semgrep-image agente-pruebas-copilot-semgrep
     profiles: ["seguridad"]
     user: *user
     working_dir: /src
@@ -124,9 +137,9 @@ services:
     command:
       - semgrep
       - scan
-      - --config=p/default
-      - --config=p/csharp
-      - --config=p/secrets
+      - --config=/p-default.json
+      - --config=/p-csharp.json
+      - --config=/p-secrets.json
       - --config=.semgrep/
       - --metrics=off
       - --sarif
@@ -136,7 +149,8 @@ services:
 
   # Reporte de demo (con hallazgos) sobre la muestra vulnerable + normalización.
   semgrep-demo:
-    image: semgrep/semgrep:1.185.0
+    build: *semgrep-build
+    image: *semgrep-image
     profiles: ["seguridad"]
     user: *user
     working_dir: /src
@@ -149,7 +163,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
-        semgrep scan --config p/csharp --config p/secrets --metrics=off
+        semgrep scan --config /p-csharp.json --config /p-secrets.json --metrics=off
         --sarif --output /reportes/semgrep-muestras.sarif
         agente-sast-g7/samples/codigo-dotnet/VulnerableController.cs;
         python3 agente-sast-g7/scripts/normalizar_sarif.py
@@ -163,7 +177,8 @@ services:
   # Solo se monta la carpeta objetivo: así no aplican el .semgrepignore ni el .gitignore
   # de este repo (que excluyen objetivos/ y samples/ de los gates).
   semgrep-objetivo:
-    image: semgrep/semgrep:1.185.0
+    build: *semgrep-build
+    image: *semgrep-image
     profiles: ["seguridad"]
     user: *user
     working_dir: /objetivo
@@ -178,7 +193,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
-        semgrep scan --config p/default --config p/csharp --config p/secrets
+        semgrep scan --config /p-default.json --config /p-csharp.json --config /p-secrets.json
         --metrics=off --no-git-ignore --sarif --output /reportes/semgrep-objetivo.sarif . &&
         python3 /scripts/normalizar_sarif.py /reportes/semgrep-objetivo.sarif
         --prefijo "$$OBJETIVO" -o /reportes/objetivo-normalizado.json &&
@@ -189,18 +204,21 @@ services:
   # con todas las reglas de la categoría Security como avisos (CA2100, CA3001-CA3012,
   # CA2300-CA2330, CA5350-CA5403…) y deja un SARIF 2.1 por proyecto en
   # salida/reportes/dotnet-objetivo/. Necesita que el objetivo compile (restaura NuGet).
+  # La imagen (tools/dotnet) trae la caché de NuGet de la muestra, de rickmorty-clean y de lo
+  # que hubiera en objetivos/ al construirla: esos proyectos compilan sin internet. Para un
+  # objetivo nuevo, clónalo en objetivos/ y reconstruye la imagen en la máquina con internet.
   # La normalización (con CWE/OWASP desde la KB) la hace ./scripts/agente.sh dotnet <ruta>.
   #   OBJETIVO=objetivos/mi-proyecto docker compose --profile seguridad run --rm dotnet-objetivo
   dotnet-objetivo:
-    image: mcr.microsoft.com/dotnet/sdk:10.0
+    build:
+      context: .
+      dockerfile: tools/dotnet/Dockerfile
+    image: agente-pruebas-copilot-dotnet
     profiles: ["seguridad"]
     user: *user
     environment:
       HOME: /tmp
       DOTNET_CLI_HOME: /tmp
-      DOTNET_NOLOGO: "1"
-      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
-      NUGET_PACKAGES: /tmp/nuget   # efímero: un volumen del host lo crearía Docker como root
       OBJETIVO: ${OBJETIVO:-agente-sast-g7/samples/app-vulnerable}
     volumes:
       - ./${OBJETIVO:-agente-sast-g7/samples/app-vulnerable}:/objetivo:ro
@@ -244,6 +262,10 @@ services:
       SONAR_PORT: ${SONAR_PORT:-9100}   # puerto publicado en el host (9000 suele estar ocupado)
       <<: *git-seguro
       REPORTES_DIR: salida/reportes
+      # Imágenes hermanas que lanza el script: el servidor y el SDK con el scanner y la caché
+      # de NuGet ya instalados (servicios "sonarqube-servidor" y "dotnet-objetivo").
+      SONAR_IMAGE: sonarqube:community
+      DOTNET_SDK_IMAGE: agente-pruebas-copilot-dotnet
     volumes:
       - ./:/repo
       - /var/run/docker.sock:/var/run/docker.sock
@@ -255,11 +277,13 @@ services:
   #   docker compose --profile agentes run --rm py agente-sast-g7/scripts/normalizar_sarif.py ...
   # Las variables ADO_* se toman del entorno o de agente-sast-g7/.env (nunca del repo).
   py:
-    image: python:3.12
+    build: *python-build
+    image: *python-image
     profiles: ["agentes"]
     user: *user
     working_dir: /repo
     environment:
+      <<: *git-seguro
       HOME: /tmp
       PYTHONDONTWRITEBYTECODE: "1"
       ADO_ORG_URL:
@@ -300,3 +324,17 @@ services:
       - ${AZURE_CONFIG_HOST:-${HOME}/.azure}:/azure
     entrypoint: []
     command: ["bash"]
+
+  # ---------------------------------------------------------------- sin internet
+  # Imágenes que usan los scripts pero que no son un servicio que se ejecute desde aquí.
+  # Se declaran para que "build", "pull" y "config --images" con --profile "*" cubran TODO
+  # lo que hay que llevar a una máquina sin internet (ver exportar-imagenes-offline.md).
+  sonarqube-servidor:        # servidor efímero que levanta scripts/sonar-analizar.sh
+    image: sonarqube:community
+    profiles: ["offline"]
+
+  api:                       # rickmorty-clean: fase "api" de validar-local (prueba de humo)
+    build:
+      context: ./rickmorty-clean
+    image: rickmorty-clean-api
+    profiles: ["offline"]

@@ -1,0 +1,14 @@
+# Contexto mínimo: solo lo que NuGet necesita para restaurar (manifiestos de proyecto) de
+# rickmorty-clean, la app vulnerable de muestra y los proyectos de objetivos/. Sin código
+# fuente: cambiar un .cs no invalida la caché de esta imagen.
+*
+!rickmorty-clean/**/*.csproj
+!agente-sast-g7/samples/app-vulnerable/**/*.csproj
+!objetivos/**/*.csproj
+!objetivos/**/*.props
+!objetivos/**/*.targets
+!objetivos/**/[Nn]u[Gg]et.[Cc]onfig
+!objetivos/**/global.json
+!objetivos/**/packages.lock.json
+**/bin/
+**/obj/

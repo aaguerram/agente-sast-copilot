@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: rickmorty-clean-api   # nombre fijo: se puede llevar con docker save / load
     restart: unless-stopped
     ports:
       - "${API_PORT:-8080}:8080"
